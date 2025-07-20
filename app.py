@@ -247,7 +247,7 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # 2. 채팅 세션 목록 - 접을 수 있는 형태로
-    with st.expander("📚 대화 기록", expanded=True):
+    with st.expander("📚 대화 기록", expanded=False):
         if not st.session_state.chat_sessions:
             st.markdown("*대화 기록이 없습니다*")
         else:
