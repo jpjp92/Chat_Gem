@@ -240,7 +240,7 @@ with st.sidebar:
     st.markdown("""
     <div style='text-align: center; padding: 1rem 0; margin-bottom: 1rem;
                 background: linear-gradient(to right, #8B5CF6, #60A5FA);
-                border-radius: 10px;'>
+                border-radius: 1px;'>
             <h2 style='color: white; margin: 0;'>⚙️ Settings</h2>
         </div>
     """, unsafe_allow_html=True)
