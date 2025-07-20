@@ -411,7 +411,7 @@ if not st.session_state.messages and not st.session_state.welcome_dismissed:
         if st.button("🌐 웹 요약", key="example_webpage", help="웹페이지 요약 기능을 시험해보세요", use_container_width=True):
             st.session_state.example_input = "https://www.aitimes.com/news/articleView.html?idxno=200667 이 사이트에 대해 설명해줘"
     with col2:
-        if st.button("📺 유튜브 요약", key="example_youtube", help="유튜브 비디오 요약 기능을 시험해보세요", use_container_width=True):
+        if st.button("🎥 유튜브 요약", key="example_youtube", help="유튜브 비디오 요약 기능을 시험해보세요", use_container_width=True):
             st.session_state.example_input = "https://www.youtube.com/watch?v=HnvitMTkXro 이 영상 요약해줘"
     with col3:
         if st.button("📄 PDF 요약", key="example_pdf", help="PDF 문서 요약 기능을 시험해보세요", use_container_width=True):
