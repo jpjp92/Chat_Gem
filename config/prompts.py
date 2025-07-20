@@ -1,5 +1,11 @@
-import logging
+# Set library imports
+from config.imports import *
 
+# Set environment variables
+from config.env import *
+
+# set logging configuration
+import logging
 logger = logging.getLogger(__name__)
 
 def get_system_prompt(language):
