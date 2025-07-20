@@ -360,7 +360,7 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📤 대화 내보내기", key="export_quick", help="현재 대화를 JSON 파일로 내보냅니다", use_container_width=True):
+        if st.button("📤 내보내기", key="export_quick", help="현재 대화를 JSON 파일로 내보냅니다", use_container_width=True):
             try:
                 export_data = export_chat_session()
                 if export_data:
