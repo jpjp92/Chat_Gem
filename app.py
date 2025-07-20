@@ -238,10 +238,10 @@ with st.sidebar:
     #     </div>
     # """, unsafe_allow_html=True)
     st.markdown("""
-    <div style='text-align: center; padding: 1rem 0; margin-bottom: 0.3rem;
+    <div style='text-align: center; padding: 0.3rem 0; margin-bottom: 0.3rem;
                 background: linear-gradient(to right, #8B5CF6, #60A5FA);
                 border-radius: 10px;'>
-            <h4 style='color: white; margin: 0;'>⚙️ Settings</h4>
+            <h2 style='color: white; margin: 0;'>⚙️ Settings</h2>
         </div>
     """, unsafe_allow_html=True)
 
