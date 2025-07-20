@@ -27,7 +27,7 @@ GEMINI_CUSTOM_CSS = """
     /* Original GEMINI_CUSTOM_CSS styles */
     .main-header {
         background: var(--primary-gradient); /* 기존 배경 유지 */
-        padding: 0.5rem 1rem; /* 위아래 패딩 줄이고 좌우는 유지 */
+        padding: 0.25rem 1rem; /* 위아래 패딩 줄이고 좌우는 유지 */
         border-radius: 8px; /* 둥근 모서리 유지 */
         margin-bottom: 1.5rem; /* 아래 콘텐츠와의 간격 유지 */
         text-align: center;
