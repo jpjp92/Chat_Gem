@@ -353,7 +353,7 @@ with st.sidebar:
                     export_data = export_chat_session()
                     if export_data:
                         st.download_button(
-                            label="📥 다운로드",
+                            label="⬇️ 다운로드",
                             data=export_data,
                             file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json",
                             mime="application/json",
@@ -408,7 +408,7 @@ if not st.session_state.messages and not st.session_state.welcome_dismissed:
     
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        if st.button("🌐 웹페이지 요약", key="example_webpage", help="웹페이지 요약 기능을 시험해보세요", use_container_width=True):
+        if st.button("🌐 웹 요약", key="example_webpage", help="웹페이지 요약 기능을 시험해보세요", use_container_width=True):
             st.session_state.example_input = "https://www.aitimes.com/news/articleView.html?idxno=200667 이 사이트에 대해 설명해줘"
     with col2:
         if st.button("📺 유튜브 요약", key="example_youtube", help="유튜브 비디오 요약 기능을 시험해보세요", use_container_width=True):
