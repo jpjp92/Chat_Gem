@@ -1,0 +1,17 @@
+# config/env.py
+
+import os
+
+# 환경 변수 로드
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+DRUG_API_KEY = os.getenv("DRUG_API_KEY")
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+NCBI_KEY = os.getenv("NCBI_KEY")
+SPORTS_API_KEY = os.getenv("SPORTS_API_KEY")
+CULTURE_API_KEY = os.getenv("CULTURE_API_KEY")
+DRUG_STORE_KEY = os.getenv("DRUG_STORE_KEY")
+HOSPITAL_KEY = os.getenv("HOSPITAL_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

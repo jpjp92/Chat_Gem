@@ -1,0 +1,16 @@
+supabase
+streamlit
+pytz
+requests
+beautifulsoup4
+pandas
+uuid
+googlesearch-python
+timezonefinder
+langdetect
+arxiv
+diskcache
+curl_cffi>=0.5.0
+pypdf>=3.0.0
+google-generativeai
+youtube_transcript_api
