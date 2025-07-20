@@ -4,6 +4,21 @@ from config.imports import *
 # Set environment variables
 from config.env import *
 
+# Set utility functions for handling various tasks
+from config.utils import (
+    extract_video_id,
+    is_youtube_url,
+    get_youtube_transcript,
+    extract_urls_from_text,
+    is_youtube_summarization_request,
+    is_url_summarization_request,
+    fetch_webpage_content,
+    is_pdf_url,
+    is_pdf_summarization_request,
+    fetch_pdf_text,
+)
+
+
 # set logging configuration
 import logging
 logger = logging.getLogger(__name__)
