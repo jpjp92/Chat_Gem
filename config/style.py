@@ -4,6 +4,27 @@ GEMINI_CUSTOM_CSS = """
         --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
+    /* Streamlit-specific styles from SIDEBAR_CUSTOM_CSS */
+    .stExpander > div:first-child {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+    }
+    
+    .stButton > button {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #4CAF50, #45a049);
+    }
+
+    /* Original GEMINI_CUSTOM_CSS styles */
     .main-header {
         background: var(--primary-gradient);
         padding: 1rem;
@@ -41,8 +62,6 @@ GEMINI_CUSTOM_CSS = """
         margin: 0;
         font-size: 1.25rem;
     }
-    
-
     
     @keyframes bounce {
         0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
