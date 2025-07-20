@@ -226,22 +226,14 @@ system_prompt = get_system_prompt(st.session_state.system_language)
 # Initialize the Gemini model with the system prompt
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
 
-# # Sidebar for chat sessions and settings
+
 # Sidebar for chat sessions and settings
 with st.sidebar:
-    # 헤더 영역 - 깔끔한 제목과 아이콘
-    # st.markdown("""
-    # <div style='text-align: left; padding: 1rem 0; border-bottom: 1px solid var(--text-color-light, #e0e0e0); margin-bottom: 1rem;'>
-    #     <h2 style='color: var(--primary-color, #60A5FA); margin: 0; font-size: 1.5rem; letter-spacing: 0.5px;'>⚙️ Settings</h2>
-    # </div>
-    # """, unsafe_allow_html=True)
-    
+
     # 헤더 영역
     st.header("⚙️ Settings")
 
-
     # 1. 새 대화 버튼 - 더 눈에 띄게
-    
     if st.button("💬 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
         create_new_chat_session()
         st.rerun()
@@ -404,174 +396,6 @@ with st.sidebar:
         - "다시 설명해줘", "더 자세히" 등으로 추가 요청
         - 대화 기록은 자동으로 저장됩니다
         """)
-
-# with st.sidebar:
-#     # 헤더 영역 - 깔끔한 제목과 아이콘
-#     st.markdown("""
-#     <div style='text-align: left; padding: 1rem 0; border-bottom: 1px solid var(--text-color-light, #e0e0e0); margin-bottom: 1rem;'>
-#         <h2 style='color: var(--primary-color, #60A5FA); margin: 0; font-size: 1.5rem; letter-spacing: 0.5px;'>⚙️ Settings</h2>
-#     </div>
-#     """, unsafe_allow_html=True)
-
-#     # 1. 새 대화 버튼 - 더 눈에 띄게
-#     if st.button("🆕 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
-#         create_new_chat_session()
-#         st.rerun()
-    
-#     st.markdown("<br>", unsafe_allow_html=True)
-    
-#     # 2. 채팅 세션 목록 - 접을 수 있는 형태로
-#     with st.expander("📚 대화 기록", expanded=False):
-#         if not st.session_state.chat_sessions:
-#             st.markdown("*대화 기록이 없습니다*")
-#         else:
-#             sorted_sessions = sorted(st.session_state.chat_sessions, 
-#                                    key=lambda x: x['last_updated'], reverse=True)
-            
-#             for idx, session in enumerate(sorted_sessions[:5]):  # 최근 5개만 표시
-#                 is_current = session['id'] == st.session_state.current_session_id
-#                 title = session['title'][:25] + "..." if len(session['title']) > 25 else session['title']
-                
-#                 col1, col2 = st.columns([4, 1])
-#                 with col1:
-#                     if is_current:
-#                         st.markdown(f"🔸 **{title}**")
-#                         st.markdown(f"*{session['last_updated'].strftime('%m/%d %H:%M')}*")
-#                     else:
-#                         if st.button(f"{title}", key=f"session_{session['id']}", 
-#                                    help=f"생성: {session['created_at'].strftime('%Y-%m-%d %H:%M')}"):
-#                             load_session(session["id"])
-#                             st.rerun()
-#                         st.caption(f"{session['last_updated'].strftime('%m/%d %H:%M')}")
-                
-#                 with col2:
-#                     if st.button("🗑️", key=f"delete_{session['id']}", 
-#                                help="이 세션을 삭제합니다", 
-#                                disabled=is_current):
-#                         delete_session(session["id"])
-#                         st.rerun()
-                
-#                 if idx < len(sorted_sessions) - 1:
-#                     st.markdown("---")
-            
-#             if len(st.session_state.chat_sessions) > 5:
-#                 st.caption(f"+ {len(st.session_state.chat_sessions) - 5}개 더보기")
-    
-#     st.markdown("<br>", unsafe_allow_html=True)
-    
-#     # 3. 설정 영역 - 컴팩트하게
-#     with st.expander("🔤 언어 선택", expanded=False):
-#         # 언어 설정
-#         language = st.selectbox(
-#             "언어 선택",  # 변경: 빈 값("") 대신 "언어 선택"으로 설정
-#             ["한국어", "English"], 
-#             index=0 if st.session_state.system_language == "ko" else 1,
-#             key="language_select"
-#         )
-        
-#         if language != ("한국어" if st.session_state.system_language == "ko" else "English"):
-#             st.session_state.system_language = "ko" if language == "한국어" else "en"
-#             system_prompt = get_system_prompt(st.session_state.system_language)
-#             model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
-#             st.session_state.chat_history = []
-#             st.session_state.messages.append({
-#                 "role": "assistant",
-#                 "content": "언어가 변경되었습니다." if st.session_state.system_language == "ko" else "Language changed."
-#             })
-#             st.rerun()
-    
-#     st.markdown("<br>", unsafe_allow_html=True)
-    
-#     # 4. 사용량 - 개선된 디자인
-#     usage_count = get_usage_count()
-#     usage_percentage = usage_count / 100
-    
-#     if usage_count >= 100:
-#         status_color = "#ff4444"
-#         status_text = "한도 초과"
-#         status_icon = "🚫"
-#     elif usage_count >= 80:
-#         status_color = "#ff9800"
-#         status_text = "거의 다 참"
-#         status_icon = "⚠️"
-#     elif usage_count >= 60:
-#         status_color = "#ffc107"
-#         status_text = "주의"
-#         status_icon = "⚡"
-#     else:
-#         status_color = "#4caf50"
-#         status_text = "정상"
-#         status_icon = "✅"
-    
-#     st.markdown("**📊 오늘 사용량**")
-#     st.progress(usage_percentage)
-    
-#     st.markdown(f"""
-#     <div style='
-#         display: flex; 
-#         justify-content: space-between; 
-#         align-items: center; 
-#         padding: 0.5rem 0;
-#         font-size: 0.9rem;
-#         margin-top: 0.25rem;
-#     '>
-#         <div style='display: flex; align-items: center; gap: 0.25rem;'>
-#             <span>{status_icon}</span>
-#             <span style='color: {status_color}; font-weight: 500;'>{status_text}</span>
-#         </div>
-#         <div style='font-weight: 600; color: var(--text-color, #262730);'>
-#             <span style='color: {status_color};'>{usage_count}</span>
-#             <span style='color: var(--text-color-light, #888); font-size: 0.8rem;'> / 100</span>
-#         </div>
-#     </div>
-#     """, unsafe_allow_html=True)
-    
-#     if usage_count >= 100:
-#         st.error("일일 한도를 초과했습니다", icon="🚫")
-#     elif usage_count >= 80:
-#         st.warning("한도가 얼마 남지 않았습니다", icon="⚠️")
-    
-#     st.markdown("<br>", unsafe_allow_html=True)
-    
-#     # 5. 기능 버튼들 - 더 깔끔한 아이콘과 배치
-#     st.markdown("**🛠️ 빠른 기능**")
-    
-#     col1, col2 = st.columns(2)
-#     with col1:
-#         if st.button("📤 내보내기", key="export_quick", help="현재 대화를 JSON 파일로 내보냅니다", use_container_width=True):
-#             try:
-#                 export_data = export_chat_session()
-#                 if export_data:
-#                     st.download_button(
-#                         label="📥 다운로드",
-#                         data=export_data,
-#                         file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json",
-#                         mime="application/json",
-#                         key="download_json",
-#                         use_container_width=True
-#                     )
-#                 else:
-#                     st.error("내보낼 대화가 없습니다.")
-#             except Exception as e:
-#                 st.error("내보내기 실패!")
-    
-#     with col2:
-#         if st.button("🧹 전체삭제", key="clear_all", help="모든 대화 기록을 삭제합니다", use_container_width=True):
-#             if st.session_state.chat_sessions:
-#                 st.markdown("---")
-#                 confirm = st.checkbox("⚠️ 정말 모든 대화를 삭제하시겠습니까?", key="confirm_delete_checkbox")
-#                 if confirm:
-#                     col_yes, col_no = st.columns(2)
-#                     with col_yes:
-#                         if st.button("✅ 삭제", key="confirm_clear", type="secondary", use_container_width=True):
-#                             st.session_state.chat_sessions = []
-#                             create_new_chat_session()
-#                             st.success("모든 대화가 삭제되었습니다!")
-#                             st.rerun()
-#                     with col_no:
-#                         if st.button("❌ 취소", key="cancel_clear", use_container_width=True):
-#                             st.session_state.confirm_delete_checkbox = False
-#                             st.rerun()
 
 # Main content area
 if not st.session_state.messages and not st.session_state.welcome_dismissed:
