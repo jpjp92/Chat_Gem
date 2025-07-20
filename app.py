@@ -293,7 +293,7 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # 3. 설정 영역 - 컴팩트하게
-    with st.expander("⚙️ 언어 선택", expanded=False):
+    with st.expander("🔤 언어 선택", expanded=False):
         # 언어 설정
         
         language = st.selectbox(
@@ -370,12 +370,12 @@ with st.sidebar:
                     st.rerun()
     
     # 6. 푸터 - 간단한 정보
-    st.markdown("---")
-    st.markdown("""
-        <div style='text-align: center; color: #666; font-size: 0.8rem;'>
-            <p>💡 팁: 이미지, YouTube, 웹 페이지, 논문 분석</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # st.markdown("---")
+    # st.markdown("""
+    #     <div style='text-align: center; color: #666; font-size: 0.8rem;'>
+    #         <p>💡 팁: 이미지, YouTube, 웹 페이지, 논문 분석</p>
+    #     </div>
+    # """, unsafe_allow_html=True)
 # with st.sidebar:
 #     st.markdown("### 📜 채팅 세션")
 #     if st.button("➕ 새 대화 시작", key="new_chat", help="새로운 대화 세션을 시작합니다"):
