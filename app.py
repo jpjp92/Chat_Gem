@@ -241,11 +241,10 @@ with st.sidebar:
 
 
     # 1. 새 대화 버튼 - 더 눈에 띄게
-    if st.button("🆕 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
+    
+    if st.button("💬 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
         create_new_chat_session()
         st.rerun()
-    
-    st.markdown("<br>", unsafe_allow_html=True)
     
     # 2. 채팅 세션 목록 - 접을 수 있는 형태로
     with st.expander("📚 대화 기록", expanded=False):
