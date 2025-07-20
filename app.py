@@ -238,7 +238,7 @@ with st.sidebar:
     #     </div>
     # """, unsafe_allow_html=True)
     st.markdown("""
-    <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #444; margin-bottom: 1rem;'>
+    <div style='text-align: left; padding: 1rem 0; border-bottom: 1px solid #444; margin-bottom: 1rem;'>
         <h2 style='color: #60A5FA; margin: 0; font-size: 1.5rem; letter-spacing: 0.5px;'>⚙️ Settings</h2>
     </div>
     """, unsafe_allow_html=True)
