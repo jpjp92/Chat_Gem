@@ -594,15 +594,20 @@ if user_input:
         st.rerun()
 
 # Footer
-
 st.markdown("""
     <div class="footer">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem;">
             <span>✨ Powered by</span>
-            <span style="background: linear-gradient(135deg, #6c63ff, #4ecdc4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Gemini AI</span>
+            <span style="background: linear-gradient(135deg, #6c63ff, #4ecdc4); 
+                         -webkit-background-clip: text; 
+                         -webkit-text-fill-color: transparent; 
+                         font-weight: 600;">Gemini AI</span>
             <span>x</span>
-            <span style="background: linear-gradient(135deg, #ff6b6b, #feca57); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Streamlit</span>
+            <span style="background: linear-gradient(135deg, #ff6b6b, #feca57); 
+                         -webkit-background-clip: text; 
+                         -webkit-text-fill-color: transparent; 
+                         font-weight: 600;">Streamlit</span>
         </div>
-        
     </div>
 """, unsafe_allow_html=True)
+
