@@ -594,7 +594,7 @@ if user_input:
         st.rerun()
 
 # Footer
-st.markdown("---")
+
 st.markdown("""
     <div class="footer">
         <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
