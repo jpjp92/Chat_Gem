@@ -188,138 +188,6 @@ def is_image_analysis_request(query, has_images):
     analysis_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
     return any(keyword in query for keyword in analysis_keywords)
 
-# def extract_video_id(url):
-#     """유튜브 URL에서 비디오 ID 추출 (쇼츠 포함)"""
-#     try:
-#         if 'youtu.be/' in url:
-#             return url.split('youtu.be/')[1].split('?')[0]
-#         elif 'youtube.com/watch' in url:
-#             parsed_url = urlparse(url)
-#             return parse_qs(parsed_url.query)['v'][0]
-#         elif 'youtube.com/embed/' in url:
-#             return url.split('embed/')[1].split('?')[0]
-#         elif 'youtube.com/shorts/' in url:
-#             return url.split('shorts/')[1].split('?')[0]
-#         else:
-#             return None
-#     except:
-#         return None
-
-# def is_youtube_url(url):
-#     """유튜브 URL인지 확인 (쇼츠 포함)"""
-#     youtube_domains = ['youtube.com', 'youtu.be', 'www.youtube.com']
-#     youtube_patterns = ['/watch', '/shorts/', '/embed/', 'youtu.be/']
-#     try:
-#         parsed_url = urlparse(url)
-#         domain_match = any(domain in parsed_url.netloc for domain in youtube_domains)
-#         pattern_match = any(pattern in url for pattern in youtube_patterns)
-#         return domain_match and pattern_match
-#     except:
-#         return False
-
-# def get_youtube_transcript(video_id):
-#     """유튜브 비디오의 자막 가져오기"""
-#     try:
-#         try:
-#             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
-#         except:
-#             try:
-#                 transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-#             except:
-#                 transcript = YouTubeTranscriptApi.get_transcript(video_id)
-#         full_text = ' '.join([entry['text'] for entry in transcript])
-#         max_chars = 15000
-#         if len(full_text) > max_chars:
-#             full_text = full_text[:max_chars] + "\n\n... (자막이 길어서 일부만 표시됩니다)"
-#         return full_text
-#     except Exception as e:
-#         logger.error(f"유튜브 자막 추출 오류: {str(e)}")
-#         return None
-
-# def extract_urls_from_text(text):
-#     """텍스트에서 URL을 추출"""
-#     url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-#     urls = re.findall(url_pattern, text)
-#     return urls
-
-# def is_youtube_summarization_request(query):
-#     """유튜브 요약 요청인지 확인"""
-#     urls = extract_urls_from_text(query)
-#     if urls:
-#         for url in urls:
-#             if is_youtube_url(url):
-#                 summary_keywords = ['요약', '정리', '내용', '설명', '알려줘', '분석', '해석', '리뷰', '정보']
-#                 for keyword in summary_keywords:
-#                     if keyword in query:
-#                         return True, url
-#     return False, None
-
-
-# def is_url_summarization_request(query):
-#     """URL 요약 요청인지 확인 (유튜브 및 PDF 제외)"""
-#     urls = extract_urls_from_text(query)
-#     if urls:
-#         for url in urls:
-#             if not is_youtube_url(url) and not is_pdf_url(url):
-#                 summary_keywords = ['요약', '정리', '내용', '설명', '알려줘', '분석', '해석', '리뷰', '정보']
-#                 for keyword in summary_keywords:
-#                     if keyword in query:
-#                         return True, url
-#     return False, None
-
-# def fetch_webpage_content(url):
-#     """일반 웹페이지 HTML 내용 추출"""
-#     try:
-#         headers = {'User-Agent': 'Mozilla/5.0'}
-#         response = requests.get(url, headers=headers, timeout=15)
-#         response.raise_for_status()
-#         soup = BeautifulSoup(response.content, 'html.parser')
-#         for tag in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
-#             tag.decompose()
-#         main_content = soup.find('main') or soup.find('article') or soup.body
-#         text = main_content.get_text(strip=True, separator='\n') if main_content else soup.get_text(strip=True, separator='\n')
-#         clean_text = '\n'.join(line.strip() for line in text.split('\n') if line.strip())
-#         if len(clean_text) > 8000:
-#             clean_text = clean_text[:8000] + "\n\n... (내용이 길어서 일부만 표시됩니다)"
-#         return clean_text
-#     except Exception as e:
-#         logger.error(f"웹페이지 내용 추출 오류: {str(e)}")
-#         return f"❌ '{url}' 내용을 가져올 수 없습니다: {str(e)}"
-
-# def is_pdf_url(url):
-#     """PDF URL인지 확인"""
-#     return url.lower().endswith('.pdf') or '/pdf/' in url
-
-# def is_pdf_summarization_request(query):
-#     """PDF 요약 요청인지 확인"""
-#     urls = extract_urls_from_text(query)
-#     if urls:
-#         for url in urls:
-#             if is_pdf_url(url):
-#                 summary_keywords = ['요약', '정리', '내용', '설명', '알려줘', '분석', '해석', '리뷰', '정보']
-#                 for keyword in summary_keywords:
-#                     if keyword in query:
-#                         return True, url
-#     return False, None
-
-# def fetch_pdf_text(url, max_chars=8000):
-#     """PDF 파일에서 텍스트 추출"""
-#     try:
-#         response = requests.get(url, timeout=20)
-#         response.raise_for_status()
-#         pdf_file = io.BytesIO(response.content)
-#         reader = PdfReader(pdf_file)
-#         text = ""
-#         for page in reader.pages:
-#             text += page.extract_text() or ""
-#             if len(text) > max_chars:
-#                 text = text[:max_chars] + "\n\n... (내용이 길어서 일부만 표시됩니다)"
-#                 break
-#         metadata = reader.metadata or {}
-#         return text.strip(), metadata
-#     except Exception as e:
-#         return f"❌ PDF 파일을 처리할 수 없습니다: {e}", None
-
 def get_usage_count():
     """일일 사용량 추적"""
     today = datetime.now().strftime("%Y-%m-%d")
@@ -362,60 +230,207 @@ system_prompt = get_system_prompt(st.session_state.system_language)
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
 
 # Sidebar for chat sessions and settings
+# 개선된 사이드바 구성
 with st.sidebar:
-    st.markdown("### 📜 채팅 세션")
-    if st.button("➕ 새 대화 시작", key="new_chat", help="새로운 대화 세션을 시작합니다"):
+    # 헤더 영역 - 깔끔한 제목과 아이콘
+    st.markdown("""
+        <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #333; margin-bottom: 1rem;'>
+            <h2 style='color: #4CAF50; margin: 0; font-size: 1.5rem;'>✨ Chat Gemini</h2>
+            <p style='color: #888; margin: 0.5rem 0 0 0; font-size: 0.9rem;'>AI 챗봇과 대화하기</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 1. 새 대화 버튼 - 더 눈에 띄게
+    if st.button("🆕 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
         create_new_chat_session()
         st.rerun()
-
-    for session in st.session_state.chat_sessions:
-        with st.container():
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                if st.button(f"{session['title']}\n({session['last_updated'].strftime('%Y-%m-%d %H:%M')})", key=f"session_{session['id']}"):
-                    load_session(session["id"])
-                    st.rerun()
-            with col2:
-                if st.button("🗑️", key=f"delete_{session['id']}", help="이 세션을 삭제합니다"):
-                    delete_session(session["id"])
-                    st.rerun()
-            st.markdown("---")
-
-    st.markdown("### ⚙️ 설정")
-    language = st.selectbox("언어 선택", ["한국어 (ko)", "English (en)"], index=0 if st.session_state.system_language == "ko" else 1)
-    if language != ("한국어 (ko)" if st.session_state.system_language == "ko" else "English (en)"):
-        st.session_state.system_language = "ko" if language == "한국어 (ko)" else "en"
-        system_prompt = get_system_prompt(st.session_state.system_language)
-        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
-        st.session_state.chat_history = []
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": "언어가 변경되었습니다. 대화를 새로 시작합니다." if st.session_state.system_language == "ko" else "Language changed. Starting a new conversation."
-        })
-        st.rerun()
-
-    st.markdown("### 📊 사용량")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 2. 채팅 세션 목록 - 접을 수 있는 형태로
+    with st.expander("📚 대화 기록", expanded=True):
+        if not st.session_state.chat_sessions:
+            st.markdown("*대화 기록이 없습니다*")
+        else:
+            # 최근 순으로 정렬
+            sorted_sessions = sorted(st.session_state.chat_sessions, 
+                                   key=lambda x: x['last_updated'], reverse=True)
+            
+            for idx, session in enumerate(sorted_sessions[:5]):  # 최근 5개만 표시
+                # 현재 활성 세션 표시
+                is_current = session['id'] == st.session_state.current_session_id
+                
+                # 세션 제목 길이 제한
+                title = session['title'][:25] + "..." if len(session['title']) > 25 else session['title']
+                
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    # 현재 세션은 다른 색상으로 표시
+                    if is_current:
+                        st.markdown(f"🔸 **{title}**")
+                        st.markdown(f"*{session['last_updated'].strftime('%m/%d %H:%M')}*")
+                    else:
+                        if st.button(f"{title}", key=f"session_{session['id']}", 
+                                   help=f"생성: {session['created_at'].strftime('%Y-%m-%d %H:%M')}"):
+                            load_session(session["id"])
+                            st.rerun()
+                        st.caption(f"{session['last_updated'].strftime('%m/%d %H:%M')}")
+                
+                with col2:
+                    if st.button("🗑️", key=f"delete_{session['id']}", 
+                               help="이 세션을 삭제합니다", 
+                               disabled=is_current):  # 현재 세션은 삭제 불가
+                        delete_session(session["id"])
+                        st.rerun()
+                
+                if idx < len(sorted_sessions) - 1:
+                    st.markdown("---")
+            
+            # 더 많은 세션이 있을 경우
+            if len(st.session_state.chat_sessions) > 5:
+                st.caption(f"+ {len(st.session_state.chat_sessions) - 5}개 더보기")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 3. 설정 영역 - 컴팩트하게
+    with st.expander("⚙️ 설정", expanded=False):
+        # 언어 설정
+        st.markdown("**언어 선택**")
+        language = st.selectbox(
+            "",
+            ["한국어", "English"], 
+            index=0 if st.session_state.system_language == "ko" else 1,
+            key="language_select"
+        )
+        
+        if language != ("한국어" if st.session_state.system_language == "ko" else "English"):
+            st.session_state.system_language = "ko" if language == "한국어" else "en"
+            system_prompt = get_system_prompt(st.session_state.system_language)
+            model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
+            st.session_state.chat_history = []
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": "언어가 변경되었습니다." if st.session_state.system_language == "ko" else "Language changed."
+            })
+            st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 4. 사용량 - 진행 바로 시각화
     usage_count = get_usage_count()
-    st.markdown(f"**오늘 사용량**: {usage_count}/100")
+    usage_percentage = usage_count / 100
+    
+    st.markdown("**📊 오늘 사용량**")
+    st.progress(usage_percentage)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("사용", f"{usage_count}")
+    with col2:
+        st.metric("남은", f"{100-usage_count}")
+    
     if usage_count >= 100:
-        st.warning("⚠️ 일일 무료 한도를 초과했습니다!")
+        st.error("⚠️ 일일 한도 초과!")
+    elif usage_count >= 80:
+        st.warning("⚠️ 한도 임박!")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 5. 기능 버튼들 - 그리드 형태로
+    st.markdown("**🛠️ 빠른 기능**")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📤", key="export_quick", help="대화 내보내기", use_container_width=True):
+            try:
+                export_data = export_chat_session()
+                if export_data:
+                    st.download_button(
+                        label="📥 다운로드",
+                        data=export_data,
+                        file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json",
+                        mime="application/json",
+                        key="download_json",
+                        use_container_width=True
+                    )
+                else:
+                    st.error("내보낼 대화가 없습니다.")
+            except Exception as e:
+                st.error("내보내기 오류!")
+    
+    with col2:
+        if st.button("🧹", key="clear_all", help="모든 대화 삭제", use_container_width=True):
+            if st.session_state.chat_sessions:
+                # 확인 메시지
+                st.warning("정말 모든 대화를 삭제하시겠습니까?")
+                if st.button("✅ 확인", key="confirm_clear"):
+                    st.session_state.chat_sessions = []
+                    create_new_chat_session()
+                    st.success("모든 대화가 삭제되었습니다!")
+                    st.rerun()
+    
+    # 6. 푸터 - 간단한 정보
+    st.markdown("---")
+    st.markdown("""
+        <div style='text-align: center; color: #666; font-size: 0.8rem;'>
+            <p>💡 팁: 이미지, YouTube, 웹페이지 분석 가능</p>
+            <p>🔒 개인정보 보호됨</p>
+        </div>
+    """, unsafe_allow_html=True)
+# with st.sidebar:
+#     st.markdown("### 📜 채팅 세션")
+#     if st.button("➕ 새 대화 시작", key="new_chat", help="새로운 대화 세션을 시작합니다"):
+#         create_new_chat_session()
+#         st.rerun()
 
-    st.markdown("### 💾 대화 내보내기")
-    if st.button("대화 내보내기", key="export_chat"):
-        try:
-            export_data = export_chat_session()
-            if export_data:
-                st.download_button(
-                    label="JSON 다운로드",
-                    data=export_data,
-                    file_name=f"chat_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
-                )
-            else:
-                st.error("❌ 내보낼 대화 세션이 없습니다.")
-        except Exception as e:
-            st.error(f"❌ 대화 내보내기 중 오류가 발생했습니다: {str(e)}")
-            logger.error(f"대화 내보내기 오류: {str(e)}")
+#     for session in st.session_state.chat_sessions:
+#         with st.container():
+#             col1, col2 = st.columns([4, 1])
+#             with col1:
+#                 if st.button(f"{session['title']}\n({session['last_updated'].strftime('%Y-%m-%d %H:%M')})", key=f"session_{session['id']}"):
+#                     load_session(session["id"])
+#                     st.rerun()
+#             with col2:
+#                 if st.button("🗑️", key=f"delete_{session['id']}", help="이 세션을 삭제합니다"):
+#                     delete_session(session["id"])
+#                     st.rerun()
+#             st.markdown("---")
+
+#     st.markdown("### ⚙️ 설정")
+#     language = st.selectbox("언어 선택", ["한국어 (ko)", "English (en)"], index=0 if st.session_state.system_language == "ko" else 1)
+#     if language != ("한국어 (ko)" if st.session_state.system_language == "ko" else "English (en)"):
+#         st.session_state.system_language = "ko" if language == "한국어 (ko)" else "en"
+#         system_prompt = get_system_prompt(st.session_state.system_language)
+#         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
+#         st.session_state.chat_history = []
+#         st.session_state.messages.append({
+#             "role": "assistant",
+#             "content": "언어가 변경되었습니다. 대화를 새로 시작합니다." if st.session_state.system_language == "ko" else "Language changed. Starting a new conversation."
+#         })
+#         st.rerun()
+
+#     st.markdown("### 📊 사용량")
+#     usage_count = get_usage_count()
+#     st.markdown(f"**오늘 사용량**: {usage_count}/100")
+#     if usage_count >= 100:
+#         st.warning("⚠️ 일일 무료 한도를 초과했습니다!")
+
+#     st.markdown("### 💾 대화 내보내기")
+#     if st.button("대화 내보내기", key="export_chat"):
+#         try:
+#             export_data = export_chat_session()
+#             if export_data:
+#                 st.download_button(
+#                     label="JSON 다운로드",
+#                     data=export_data,
+#                     file_name=f"chat_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+#                     mime="application/json"
+#                 )
+#             else:
+#                 st.error("❌ 내보낼 대화 세션이 없습니다.")
+#         except Exception as e:
+#             st.error(f"❌ 대화 내보내기 중 오류가 발생했습니다: {str(e)}")
+#             logger.error(f"대화 내보내기 오류: {str(e)}")
 
 # Main content area
 if not st.session_state.messages and not st.session_state.welcome_dismissed:
