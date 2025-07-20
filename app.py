@@ -90,14 +90,61 @@ def initialize_session_state():
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
 
+# def create_or_get_user(nickname):
+#     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
+#     user = supabase.table("users").select("*").eq("nickname", nickname).execute()
+#     if user.data:
+#         return user.data[0]["id"], True
+#     new_user = supabase.table("users").insert({"nickname": nickname, "created_at": datetime.now().isoformat()}).execute()
+#     return new_user.data[0]["id"], False
+
+# 개선된 create_or_get_user 함수
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
-    user = supabase.table("users").select("*").eq("nickname", nickname).execute()
-    if user.data:
-        return user.data[0]["id"], True
-    new_user = supabase.table("users").insert({"nickname": nickname, "created_at": datetime.now().isoformat()}).execute()
-    return new_user.data[0]["id"], False
+    try:
+        # 사용자 조회
+        user_response = supabase.table("users").select("*").eq("nickname", nickname).execute()
+        
+        if user_response.data:
+            logger.info(f"기존 사용자 로그인: {nickname}")
+            return user_response.data[0]["id"], True
+        
+        # 새 사용자 생성
+        new_user_response = supabase.table("users").insert({
+            "nickname": nickname,
+            "created_at": datetime.now().isoformat()
+        }).execute()
+        
+        if new_user_response.data:
+            logger.info(f"새 사용자 생성: {nickname}")
+            return new_user_response.data[0]["id"], False
+        else:
+            raise Exception("사용자 생성에 실패했습니다.")
+            
+    except Exception as e:
+        logger.error(f"create_or_get_user 오류: {e}")
+        raise e
 
+
+# 닉네임 유효성 검사 함수 추가
+def validate_nickname(nickname):
+    """닉네임 유효성 검사"""
+    if not nickname or not nickname.strip():
+        return False, "닉네임을 입력해주세요."
+    
+    nickname = nickname.strip()
+    if len(nickname) < 2:
+        return False, "닉네임은 2자 이상이어야 합니다."
+    
+    if len(nickname) > 20:
+        return False, "닉네임은 20자 이하여야 합니다."
+    
+    if not re.match(r'^[가-힣a-zA-Z0-9_\s]+$', nickname):
+        return False, "닉네임에는 한글, 영문, 숫자, 언더스코어, 공백만 사용 가능합니다."
+    
+    return True, "유효한 닉네임입니다."
+
+# 개선된 show_login_page 함수
 def show_login_page():
     """로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
     st.title("로그인 🤗")
@@ -106,17 +153,46 @@ def show_login_page():
         submit_button = st.form_submit_button("시작하기 🚀")
 
         if submit_button and nickname:
+            is_valid, message = validate_nickname(nickname)
+            if not is_valid:
+                st.error(message)
+                return
+            
             try:
                 user_id, is_existing = create_or_get_user(nickname)
                 st.session_state.user_id = user_id
                 st.session_state.is_logged_in = True
-                # st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
+                st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
                 st.session_state.current_session_id = str(uuid.uuid4())
 
-                st.success(f"환영합니다, {nickname}님! 🎉")
+                welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
+                st.success(welcome_message)
                 st.rerun()
-            except Exception:
+            except Exception as e:
+                logger.error(f"로그인 오류: {e}")
                 st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
+
+
+
+# def show_login_page():
+#     """로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
+#     st.title("로그인 🤗")
+#     with st.form("login_form"):
+#         nickname = st.text_input("닉네임", placeholder="예: 후안")
+#         submit_button = st.form_submit_button("시작하기 🚀")
+
+#         if submit_button and nickname:
+#             try:
+#                 user_id, is_existing = create_or_get_user(nickname)
+#                 st.session_state.user_id = user_id
+#                 st.session_state.is_logged_in = True
+#                 # st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
+#                 st.session_state.current_session_id = str(uuid.uuid4())
+
+#                 st.success(f"환영합니다, {nickname}님! 🎉")
+#                 st.rerun()
+#             except Exception:
+#                 st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
 
 def create_new_chat_session():
     """새 채팅 세션 생성"""
