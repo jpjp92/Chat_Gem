@@ -1,3 +1,8 @@
+# Chat_Gem/app.py
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # Set library imports
 from config.imports import *
 
