@@ -26,29 +26,29 @@ GEMINI_CUSTOM_CSS = """
 
     /* Original GEMINI_CUSTOM_CSS styles */
     .main-header {
-        background: var(--primary-gradient); /* 기존 gradient 유지 */
-        padding: 0.75rem; /* 박스 높이 줄이기 위해 패딩 감소 */
-        border-radius: 8px; /* 둥근 모서리를 조금 더 작고 세련되게 */
-        margin-bottom: 1.5rem; /* 아래 콘텐츠와의 간격 증가 */
+        background: var(--primary-gradient); /* 기존 배경 유지 */
+        padding: 0.5rem 1rem; /* 위아래 패딩 줄이고 좌우는 유지 */
+        border-radius: 8px; /* 둥근 모서리 유지 */
+        margin-bottom: 1.5rem; /* 아래 콘텐츠와의 간격 유지 */
         text-align: center;
         color: white;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05); /* 그림자를 부드럽게 조정 */
-        max-width: 600px; /* 박스 너비 제한으로 덜 압도적으로 */
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05); /* 그림자 더 부드럽게 */
+        max-width: 100%; /* 좌우 폭 유지 */
         margin-left: auto;
-        margin-right: auto; /* 중앙 정렬 */
+        margin-right: auto; /* 중앙 정렬 유지 */
     }
 
     .main-title {
-        background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1); /* gradient 색상 단순화 */
-        background-size: 200% 200%; /* 애니메이션 부드럽게 */
+        background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1); /* 그라디언트 유지 */
+        background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 1.75rem; /* 글자 크기 약간 줄임 */
-        font-weight: 600; /* 글자 두께를 살짝 가볍게 */
-        margin: 0 0 0.25rem 0; /* 아래 여백 줄임 */
-        animation: gradient 5s ease infinite; /* 애니메이션 속도 느리게 */
-        text-shadow: 0 2px 10px rgba(0,0,0,0.05); /* 텍스트 그림자 부드럽게 */
+        font-size: 1.5rem; /* 제목 글자 크기 줄임 */
+        font-weight: 600;
+        margin: 0 0 0.25rem 0; /* 아래 여백 유지 */
+        animation: gradient 5s ease infinite; /* 애니메이션 유지 */
+        text-shadow: 0 2px 10px rgba(0,0,0,0.05);
         line-height: 1.2;
     }
 
@@ -59,11 +59,11 @@ GEMINI_CUSTOM_CSS = """
     }
 
     .subtitle {
-        color: rgba(255, 255, 255, 0.9); /* 투명도 약간 높여 덜 두드러지게 */
-        font-weight: 400; /* 글자 두께 줄임 */
+        color: rgba(255, 255, 255, 0.9); /* 색상 유지 */
+        font-weight: 400;
         line-height: 1.5;
         margin: 0;
-        font-size: 1rem; /* 글자 크기 줄임 */
+        font-size: 0.9rem; /* 부제목 글자 크기 줄임 */
     }
     
     @keyframes bounce {
