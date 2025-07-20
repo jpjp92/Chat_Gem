@@ -1,17 +1,48 @@
-# 라이브러리 설정
+# =========================
+# Chat_Gem Common Library Imports
+# =========================
+
+# --- Standard Library ---
+import os
+import sys
+import io
+import re
+import json
+import uuid
+import base64
+import logging
+import random
+import time
+import types
+import queue
+import threading
+import multiprocessing
+import asyncio
+import atexit
+from datetime import datetime, timedelta
+from functools import lru_cache
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import urllib.parse
+import urllib.request
+
+# --- External Libraries & Frameworks ---
 import streamlit as st
 import google.generativeai as genai
-import os
-from datetime import datetime
-import json
 import requests
 from bs4 import BeautifulSoup
-import re
-import logging
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 from pypdf import PdfReader
-import io
 from PIL import Image
-import base64
-import uuid
+
+# --- Other Third-Party Packages ---
+import aiohttp
+import arxiv
+import nest_asyncio
+import pandas as pd
+import pytz
+from diskcache import Cache
+from langdetect import detect
+from requests.adapters import HTTPAdapter
+from supabase import create_client
+from timezonefinder import TimezoneFinder
