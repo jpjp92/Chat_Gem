@@ -293,9 +293,9 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # 3. 설정 영역 - 컴팩트하게
-    with st.expander("⚙️ 설정", expanded=False):
+    with st.expander("⚙️ 언어 선택", expanded=False):
         # 언어 설정
-        st.markdown("**언어 선택**")
+        
         language = st.selectbox(
             "",
             ["한국어", "English"], 
@@ -373,8 +373,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("""
         <div style='text-align: center; color: #666; font-size: 0.8rem;'>
-            <p>💡 팁: 이미지, YouTube, 웹페이지 분석 가능</p>
-            <p>🔒 개인정보 보호됨</p>
+            <p>💡 팁: 이미지, YouTube, 웹 페이지, 논문 분석</p>
         </div>
     """, unsafe_allow_html=True)
 # with st.sidebar:
