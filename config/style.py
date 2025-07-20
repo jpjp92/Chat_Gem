@@ -26,41 +26,44 @@ GEMINI_CUSTOM_CSS = """
 
     /* Original GEMINI_CUSTOM_CSS styles */
     .main-header {
-        background: var(--primary-gradient);
-        padding: 1rem;
-        border-radius: 5px;
-        margin-bottom: 1rem;
+        background: var(--primary-gradient); /* 기존 gradient 유지 */
+        padding: 0.75rem; /* 박스 높이 줄이기 위해 패딩 감소 */
+        border-radius: 8px; /* 둥근 모서리를 조금 더 작고 세련되게 */
+        margin-bottom: 1.5rem; /* 아래 콘텐츠와의 간격 증가 */
         text-align: center;
         color: white;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); /* 그림자를 부드럽게 조정 */
+        max-width: 600px; /* 박스 너비 제한으로 덜 압도적으로 */
+        margin-left: auto;
+        margin-right: auto; /* 중앙 정렬 */
     }
-    
+
     .main-title {
-        background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
-        background-size: 300% 300%;
+        background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1); /* gradient 색상 단순화 */
+        background-size: 200% 200%; /* 애니메이션 부드럽게 */
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 2rem;
-        font-weight: 700;
-        margin: 0 0 0.5rem 0;
-        animation: gradient 3s ease infinite;
-        text-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        font-size: 1.75rem; /* 글자 크기 약간 줄임 */
+        font-weight: 600; /* 글자 두께를 살짝 가볍게 */
+        margin: 0 0 0.25rem 0; /* 아래 여백 줄임 */
+        animation: gradient 5s ease infinite; /* 애니메이션 속도 느리게 */
+        text-shadow: 0 2px 10px rgba(0,0,0,0.05); /* 텍스트 그림자 부드럽게 */
         line-height: 1.2;
     }
-    
+
     @keyframes gradient {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-    
+
     .subtitle {
-        color: rgba(255, 255, 255, 0.95);
-        font-weight: 500;
-        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.9); /* 투명도 약간 높여 덜 두드러지게 */
+        font-weight: 400; /* 글자 두께 줄임 */
+        line-height: 1.5;
         margin: 0;
-        font-size: 1.25rem;
+        font-size: 1rem; /* 글자 크기 줄임 */
     }
     
     @keyframes bounce {
