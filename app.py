@@ -110,7 +110,7 @@ def show_login_page():
                 user_id, is_existing = create_or_get_user(nickname)
                 st.session_state.user_id = user_id
                 st.session_state.is_logged_in = True
-                st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
+                # st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
                 st.session_state.current_session_id = str(uuid.uuid4())
 
                 st.success(f"환영합니다, {nickname}님! 🎉")
