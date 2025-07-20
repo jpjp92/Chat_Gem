@@ -232,11 +232,19 @@ model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prom
 # Sidebar for chat sessions and settings
 with st.sidebar:
     # 헤더 영역 - 깔끔한 제목과 아이콘
+    # st.markdown("""
+    #     <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #333; margin-bottom: 1rem;'>
+    #         <h2 style='color: #4CAF50; margin: 0; font-size: 1.5rem;'>⚙️ Settings</h2>
+    #     </div>
+    # """, unsafe_allow_html=True)
     st.markdown("""
-        <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #333; margin-bottom: 1rem;'>
-            <h2 style='color: #4CAF50; margin: 0; font-size: 1.5rem;'>⚙️ Settings</h2>
+    <div style='text-align: center; padding: 1rem 0; margin-bottom: 1rem;
+                background: linear-gradient(to right, #8B5CF6, #60A5FA);
+                border-radius: 10px;'>
+            <h2 style='color: white; margin: 0;'>⚙️ Settings</h2>
         </div>
     """, unsafe_allow_html=True)
+
     
     # 1. 새 대화 버튼 - 더 눈에 띄게
     if st.button("🆕 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
