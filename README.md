@@ -7,9 +7,10 @@
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/yourusername/your-repo-name.svg)](https://github.com/yourusername/your-repo-name/pulls)
 
 </div>
+
 ## ✨ Overview
 
-Chat with Gemini is a powerful AI chat application built with Streamlit and the Google Gemini API. It supports webpage summarization, YouTube video summarization, PDF document summarization, image analysis, and natural conversation in both Korean and English. With a user-friendly interface and robust session management, it offers an intuitive and seamless AI interaction experience.
+> Chat with Gemini is a powerful AI chat application built with Streamlit and the Google Gemini API. It supports webpage summarization, YouTube video summarization, PDF document summarization, image analysis, and natural conversation in both Korean and English. With a user-friendly interface and robust session management, it offers an intuitive and seamless AI interaction experience.
 
 ## 🚀 Features
 
