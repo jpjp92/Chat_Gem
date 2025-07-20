@@ -81,7 +81,6 @@ def initialize_session_state():
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
 
-
 def create_new_chat_session():
     """새 채팅 세션 생성"""
     session_id = str(uuid.uuid4())
@@ -140,12 +139,10 @@ def export_chat_session():
     if st.session_state.current_session_id:
         for session in st.session_state.chat_sessions:
             if session["id"] == st.session_state.current_session_id:
-                # 메시지 데이터를 복사하여 수정
                 serialized_messages = []
                 for msg in session["messages"]:
                     msg_copy = msg.copy()
                     if "images" in msg_copy and msg_copy["images"]:
-                        # bytes 데이터를 Base64 문자열로 변환
                         msg_copy["images"] = [base64.b64encode(img).decode('utf-8') for img in msg_copy["images"]]
                     serialized_messages.append(msg_copy)
                 
@@ -230,7 +227,6 @@ system_prompt = get_system_prompt(st.session_state.system_language)
 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
 
 # Sidebar for chat sessions and settings
-# Sidebar for chat sessions and settings
 with st.sidebar:
     # 헤더 영역 - 깔끔한 제목과 아이콘
     st.markdown("""
@@ -251,20 +247,15 @@ with st.sidebar:
         if not st.session_state.chat_sessions:
             st.markdown("*대화 기록이 없습니다*")
         else:
-            # 최근 순으로 정렬
             sorted_sessions = sorted(st.session_state.chat_sessions, 
                                    key=lambda x: x['last_updated'], reverse=True)
             
             for idx, session in enumerate(sorted_sessions[:5]):  # 최근 5개만 표시
-                # 현재 활성 세션 표시
                 is_current = session['id'] == st.session_state.current_session_id
-                
-                # 세션 제목 길이 제한
                 title = session['title'][:25] + "..." if len(session['title']) > 25 else session['title']
                 
                 col1, col2 = st.columns([4, 1])
                 with col1:
-                    # 현재 세션은 다른 색상으로 표시
                     if is_current:
                         st.markdown(f"🔸 **{title}**")
                         st.markdown(f"*{session['last_updated'].strftime('%m/%d %H:%M')}*")
@@ -278,14 +269,13 @@ with st.sidebar:
                 with col2:
                     if st.button("🗑️", key=f"delete_{session['id']}", 
                                help="이 세션을 삭제합니다", 
-                               disabled=is_current):  # 현재 세션은 삭제 불가
+                               disabled=is_current):
                         delete_session(session["id"])
                         st.rerun()
                 
                 if idx < len(sorted_sessions) - 1:
                     st.markdown("---")
             
-            # 더 많은 세션이 있을 경우
             if len(st.session_state.chat_sessions) > 5:
                 st.caption(f"+ {len(st.session_state.chat_sessions) - 5}개 더보기")
     
@@ -295,7 +285,7 @@ with st.sidebar:
     with st.expander("🔤 언어 선택", expanded=False):
         # 언어 설정
         language = st.selectbox(
-            "",
+            "언어 선택",  # 변경: 빈 값("") 대신 "언어 선택"으로 설정
             ["한국어", "English"], 
             index=0 if st.session_state.system_language == "ko" else 1,
             key="language_select"
@@ -318,7 +308,6 @@ with st.sidebar:
     usage_count = get_usage_count()
     usage_percentage = usage_count / 100
     
-    # 사용량 상태에 따른 색상
     if usage_count >= 100:
         status_color = "#ff4444"
         status_text = "한도 초과"
@@ -337,11 +326,8 @@ with st.sidebar:
         status_icon = "✅"
     
     st.markdown("**📊 오늘 사용량**")
-    
-    # 진행 바와 상태 표시를 함께
     st.progress(usage_percentage)
     
-    # 사용량 정보를 컴팩트하게 표시
     st.markdown(f"""
     <div style='
         display: flex; 
@@ -362,7 +348,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # 상태별 메시지 (간결하게)
     if usage_count >= 100:
         st.error("일일 한도를 초과했습니다", icon="🚫")
     elif usage_count >= 80:
@@ -375,7 +360,7 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📤 내보내기", key="export_quick", help="현재 대화를 JSON 파일로 내보냅니다", use_container_width=True):
+        if st.button("📤 대화 내보내기", key="export_quick", help="현재 대화를 JSON 파일로 내보냅니다", use_container_width=True):
             try:
                 export_data = export_chat_session()
                 if export_data:
@@ -395,7 +380,6 @@ with st.sidebar:
     with col2:
         if st.button("🧹 전체삭제", key="clear_all", help="모든 대화 기록을 삭제합니다", use_container_width=True):
             if st.session_state.chat_sessions:
-                # 확인을 위한 체크박스 사용 (더 안전)
                 st.markdown("---")
                 confirm = st.checkbox("⚠️ 정말 모든 대화를 삭제하시겠습니까?", key="confirm_delete_checkbox")
                 if confirm:
@@ -469,9 +453,7 @@ with chat_container:
                             st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
 
 # Image upload and chat input
-
 with st.container():
-    # 이미지 업로드 영역
     with st.expander("📎 이미지 첨부", expanded=False):
         uploaded_files = st.file_uploader(
             "이미지를 업로드하여 분석해보세요",
@@ -492,12 +474,11 @@ with st.container():
             st.session_state.uploaded_images = []
             st.rerun()
 
-    # 메인 채팅 입력창
     user_input = st.chat_input("💬 메시지를 입력해주세요.")
 
 # Chat input processing
 if user_input:
-    save_current_session()  # 현재 세션 저장
+    save_current_session()
     if not st.session_state.current_session_id:
         create_new_chat_session()
 
@@ -559,8 +540,12 @@ if user_input:
             else:
                 status.update(label="💬 응답을 생성하는 중...")
                 chat_session = model.start_chat(history=st.session_state.chat_history)
-                response = chat_session.send_message(user_input).text
-                st.session_state.chat_history = chat_session.history
+                try:
+                    response = chat_session.send_message(user_input).text
+                    st.session_state.chat_history = chat_session.history
+                except Exception as e:
+                    logger.error(f"Google Generative AI 서비스 오류: {e}")  # 변경: 오류를 로그에 기록
+                    response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."  # 변경: 사용자에게 최소한의 메시지 표시
             status.update(label="✅ 완료!", state="complete")
 
         st.session_state.messages.append({"role": "assistant", "content": response})
@@ -585,4 +570,3 @@ st.markdown("""
         </div>
     </div>
 """, unsafe_allow_html=True)
-
