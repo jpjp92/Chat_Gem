@@ -1,12 +1,10 @@
+# Chat_Gem - Streamlit App for Gemini AI Interactions
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Set library imports
 from config.imports import *
-from supabase import create_client
-import uuid
-from datetime import datetime
 
 # Set environment variables
 from config.env import *
@@ -90,14 +88,6 @@ def initialize_session_state():
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
 
-# def create_or_get_user(nickname):
-#     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
-#     user = supabase.table("users").select("*").eq("nickname", nickname).execute()
-#     if user.data:
-#         return user.data[0]["id"], True
-#     new_user = supabase.table("users").insert({"nickname": nickname, "created_at": datetime.now().isoformat()}).execute()
-#     return new_user.data[0]["id"], False
-
 # 개선된 create_or_get_user 함수
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
@@ -171,28 +161,6 @@ def show_login_page():
             except Exception as e:
                 logger.error(f"로그인 오류: {e}")
                 st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
-
-
-
-# def show_login_page():
-#     """로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
-#     st.title("로그인 🤗")
-#     with st.form("login_form"):
-#         nickname = st.text_input("닉네임", placeholder="예: 후안")
-#         submit_button = st.form_submit_button("시작하기 🚀")
-
-#         if submit_button and nickname:
-#             try:
-#                 user_id, is_existing = create_or_get_user(nickname)
-#                 st.session_state.user_id = user_id
-#                 st.session_state.is_logged_in = True
-#                 # st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
-#                 st.session_state.current_session_id = str(uuid.uuid4())
-
-#                 st.success(f"환영합니다, {nickname}님! 🎉")
-#                 st.rerun()
-#             except Exception:
-#                 st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
 
 def create_new_chat_session():
     """새 채팅 세션 생성"""
