@@ -238,12 +238,11 @@ with st.sidebar:
     #     </div>
     # """, unsafe_allow_html=True)
     st.markdown("""
-    <div style='text-align: center; padding: 0.3rem 0; margin-bottom: 0.3rem;
-                background: linear-gradient(to right, #8B5CF6, #60A5FA);
-                border-radius: 10px;'>
-            <h2 style='color: white; margin: 0;'>⚙️ Settings</h2>
-        </div>
+    <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #444; margin-bottom: 1rem;'>
+        <h2 style='color: #60A5FA; margin: 0; font-size: 1.5rem; letter-spacing: 0.5px;'>⚙️ Settings</h2>
+    </div>
     """, unsafe_allow_html=True)
+
 
     
     # 1. 새 대화 버튼 - 더 눈에 띄게
