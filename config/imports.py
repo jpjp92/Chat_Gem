@@ -46,3 +46,4 @@ from langdetect import detect
 from requests.adapters import HTTPAdapter
 from supabase import create_client
 from timezonefinder import TimezoneFinder
+import yt_dlp
