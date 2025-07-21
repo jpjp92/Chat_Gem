@@ -88,6 +88,21 @@ def initialize_session_state():
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
 
+    # 개선: 로그인 상태인데 현재 세션이 없으면 새 세션을 생성하거나 기존 세션을 로드
+    if st.session_state.is_logged_in and not st.session_state.current_session_id:
+        if st.session_state.chat_sessions:
+            # 가장 최근 세션을 로드
+            st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
+            load_session(st.session_state.chat_sessions[0]["id"])
+        else:
+            # 새 세션 생성
+            create_new_chat_session()
+            # 초기 환영 메시지 추가 (만약 messages가 비어있다면)
+            if not st.session_state.messages:
+                st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
+            save_current_session() # 초기 상태를 저장하여 사이드바에 표시되도록 함
+
+
 # 개선된 create_or_get_user 함수
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
@@ -152,8 +167,11 @@ def show_login_page():
                 user_id, is_existing = create_or_get_user(nickname)
                 st.session_state.user_id = user_id
                 st.session_state.is_logged_in = True
-                # st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"}]
-                st.session_state.current_session_id = str(uuid.uuid4())
+                
+                # 개선: 로그인 성공 시 새 채팅 세션 즉시 생성 및 초기 메시지 저장
+                create_new_chat_session()
+                st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
+                save_current_session() # 초기 메시지가 포함된 새 세션을 저장
 
                 welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
                 st.success(welcome_message)
@@ -190,9 +208,12 @@ def save_current_session():
                 session["chat_history"] = st.session_state.chat_history.copy()
                 session["last_updated"] = datetime.now()
                 if st.session_state.messages:
+                    # 첫 사용자 메시지를 세션 제목으로 사용
                     first_user_message = next((msg["content"] for msg in st.session_state.messages if msg["role"] == "user"), "")
                     if first_user_message:
                         session["title"] = first_user_message[:30] + "..." if len(first_user_message) > 30 else first_user_message
+                    elif session["title"].startswith("새 대화"): # 사용자 메시지가 없으면 기본 제목 유지
+                        pass 
                 break
 
 def load_session(session_id):
@@ -313,12 +334,12 @@ def show_chat_dashboard():
             create_new_chat_session()
             st.rerun()
         
-        with st.expander("📚 대화 기록", expanded=False):
+        with st.expander("📚 대화 기록", expanded=True): # expanded=True로 변경하여 기본적으로 열려있도록 함
             if not st.session_state.chat_sessions:
                 st.markdown("*대화 기록이 없습니다*")
             else:
                 sorted_sessions = sorted(st.session_state.chat_sessions, 
-                                       key=lambda x: x['last_updated'], reverse=True)
+                                         key=lambda x: x['last_updated'], reverse=True)
                 for idx, session in enumerate(sorted_sessions[:5]):
                     is_current = session['id'] == st.session_state.current_session_id
                     title = session['title'][:25] + "..." if len(session['title']) > 25 else session['title']
@@ -329,14 +350,14 @@ def show_chat_dashboard():
                             st.markdown(f"*{session['last_updated'].strftime('%m/%d %H:%M')}*")
                         else:
                             if st.button(f"{title}", key=f"session_{session['id']}", 
-                                       help=f"생성: {session['created_at'].strftime('%Y-%m-%d %H:%M')}"):
+                                         help=f"생성: {session['created_at'].strftime('%Y-%m-%d %H:%M')}"):
                                 load_session(session["id"])
                                 st.rerun()
                             st.caption(f"{session['last_updated'].strftime('%m/%d %H:%M')}")
                     with col2:
                         if st.button("🗑️", key=f"delete_{session['id']}", 
-                                   help="이 세션을 삭제합니다", 
-                                   disabled=is_current):
+                                     help="이 세션을 삭제합니다", 
+                                     disabled=is_current):
                             delete_session(session["id"])
                             st.rerun()
                     if idx < len(sorted_sessions) - 1:
@@ -530,9 +551,9 @@ def show_chat_dashboard():
 
     # Chat input processing
     if user_input:
-        save_current_session()
+        save_current_session() # 현재 세션의 이전 상태를 저장 (새 메시지 추가 전)
         if not st.session_state.current_session_id:
-            create_new_chat_session()
+            create_new_chat_session() # 만약 current_session_id가 아직 설정되지 않았다면 새 세션 생성
 
         detected_lang = detect_language(user_input)
         if detected_lang != st.session_state.system_language:
@@ -602,7 +623,7 @@ def show_chat_dashboard():
 
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.uploaded_images = []
-            save_current_session()
+            save_current_session() # 새로운 메시지와 응답이 추가된 현재 세션을 저장
             st.rerun()
 
     # Footer
