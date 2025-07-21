@@ -88,19 +88,16 @@ def initialize_session_state():
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
 
-    # 개선: 로그인 상태인데 현재 세션이 없으면 새 세션을 생성하거나 기존 세션을 로드
+    # 로그인 상태인데 현재 세션이 없으면 새 세션을 생성하거나 기존 세션을 로드
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
         if st.session_state.chat_sessions:
             # 가장 최근 세션을 로드
             st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
             load_session(st.session_state.chat_sessions[0]["id"])
         else:
-            # 새 세션 생성
+            # 새 세션 생성 (메시지 없이)
             create_new_chat_session()
-            # 초기 환영 메시지 추가 (만약 messages가 비어있다면)
-            if not st.session_state.messages:
-                st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
-            save_current_session() # 초기 상태를 저장하여 사이드바에 표시되도록 함
+            save_current_session() # 제목만 있는 빈 세션을 저장
 
 
 # 개선된 create_or_get_user 함수
@@ -168,11 +165,7 @@ def show_login_page():
                 st.session_state.user_id = user_id
                 st.session_state.is_logged_in = True
                 
-                # 개선: 로그인 성공 시 새 채팅 세션 즉시 생성 및 초기 메시지 저장
-                create_new_chat_session()
-                st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
-                save_current_session() # 초기 메시지가 포함된 새 세션을 저장
-
+                # 로그인 성공 시, initialize_session_state에서 처리하므로 여기서 세션 생성 불필요
                 welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
                 st.success(welcome_message)
                 st.rerun()
@@ -334,7 +327,7 @@ def show_chat_dashboard():
             create_new_chat_session()
             st.rerun()
         
-        with st.expander("📚 대화 기록", expanded=True): # expanded=True로 변경하여 기본적으로 열려있도록 함
+        with st.expander("📚 대화 기록", expanded=True):
             if not st.session_state.chat_sessions:
                 st.markdown("*대화 기록이 없습니다*")
             else:
@@ -471,7 +464,7 @@ def show_chat_dashboard():
             """)
 
     # Main content area
-    if not st.session_state.messages and not st.session_state.welcome_dismissed:
+    if not st.session_state.messages:
         st.markdown("""
         <div class="main-header">
             <h2 class="main-title"> ✨Chat with Gemini</h2>
@@ -551,9 +544,9 @@ def show_chat_dashboard():
 
     # Chat input processing
     if user_input:
-        save_current_session() # 현재 세션의 이전 상태를 저장 (새 메시지 추가 전)
+        save_current_session()
         if not st.session_state.current_session_id:
-            create_new_chat_session() # 만약 current_session_id가 아직 설정되지 않았다면 새 세션 생성
+            create_new_chat_session()
 
         detected_lang = detect_language(user_input)
         if detected_lang != st.session_state.system_language:
@@ -580,6 +573,11 @@ def show_chat_dashboard():
                     img_file.seek(0)
                     image_data.append(img_file.read())
 
+            # 만약 첫 대화라면, 웰컴 메시지를 먼저 추가
+            if not st.session_state.messages:
+                st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
+            
+            # 사용자 메시지 추가
             st.session_state.messages.append({
                 "role": "user",
                 "content": user_input,
@@ -619,11 +617,11 @@ def show_chat_dashboard():
                     except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
                         response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
-                    status.update(label="✅ 완료!", state="complete")
+                status.update(label="✅ 완료!", state="complete")
 
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.uploaded_images = []
-            save_current_session() # 새로운 메시지와 응답이 추가된 현재 세션을 저장
+            save_current_session()
             st.rerun()
 
     # Footer
