@@ -349,8 +349,8 @@ def show_chat_dashboard():
                             st.caption(f"{session['last_updated'].strftime('%m/%d %H:%M')}")
                     with col2:
                         if st.button("🗑️", key=f"delete_{session['id']}", 
-                                     help="이 세션을 삭제합니다", 
-                                     disabled=is_current):
+                                     help="이 세션을 삭제합니다" 
+                                     ):
                             delete_session(session["id"])
                             st.rerun()
                     if idx < len(sorted_sessions) - 1:
