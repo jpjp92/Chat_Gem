@@ -175,7 +175,7 @@ def show_login_page():
         with st.form("login_form"):
             nickname = st.text_input(
                 "Login", 
-                placeholder="닉네임을 입력해주세요 ✨",
+                placeholder="닉네임을 입력해주세요.",
                 help="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
             )
             
