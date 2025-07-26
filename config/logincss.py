@@ -116,12 +116,12 @@ TRENDY_LOGIN_CSS = """
 }
 
 /* 레이블 스타일 */
-.stTextInput label {
-    color: white !important;
-    font-weight: 600 !important;
-    font-size: 1rem !important;
-    margin-bottom: 0.5rem !important;
-}
+# .stTextInput label {
+#     color: white !important;
+#     font-weight: 600 !important;
+#     font-size: 1rem !important;
+#     margin-bottom: 0.5rem !important;
+# }
 
 /* 폼 버튼 스타일 */
 .stFormSubmitButton > button {
