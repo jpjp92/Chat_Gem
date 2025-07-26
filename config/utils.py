@@ -111,18 +111,6 @@ def is_pdf_url(url):
     """PDF URL인지 확인"""
     return url.lower().endswith('.pdf') or '/pdf/' in url
 
-# def is_pdf_summarization_request(query):
-#     """PDF 요약 요청인지 확인"""
-#     urls = extract_urls_from_text(query)
-#     if urls:
-#         for url in urls:
-#             if is_pdf_url(url):
-#                 summary_keywords = ['요약', '정리', '내용', '설명', '알려줘', '분석', '해석', '리뷰', '정보']
-#                 for keyword in summary_keywords:
-#                     if keyword in query:
-#                         return True, url
-#     return False, None
-
 def is_pdf_summarization_request(query):
     urls = extract_urls_from_text(query)
     if urls:
@@ -132,48 +120,6 @@ def is_pdf_summarization_request(query):
                 if any(keyword in query for keyword in analysis_keywords) or "PDF" in query:
                     return True, url
     return False, None
-
-
-
-# def fetch_pdf_text(url, max_chars=8000):
-#     """PDF 파일에서 텍스트 추출"""
-#     try:
-#         response = requests.get(url, timeout=20)
-#         response.raise_for_status()
-#         pdf_file = io.BytesIO(response.content)
-#         reader = PdfReader(pdf_file)
-#         text = ""
-#         for page in reader.pages:
-#             text += page.extract_text() or ""
-#             if len(text) > max_chars:
-#                 text = text[:max_chars] + "\n\n... (내용이 길어서 일부만 표시됩니다)"
-#                 break
-#         metadata = reader.metadata or {}
-#         return text.strip(), metadata
-#     except Exception as e:
-#         return f"❌ PDF 파일을 처리할 수 없습니다: {e}", None
-
-# def fetch_pdf_text(url, max_chars=8000):
-#     try:
-#         response = requests.get(url, timeout=20)
-#         response.raise_for_status()
-#         pdf_file = io.BytesIO(response.content)
-#         reader = PdfReader(pdf_file)
-#         text = ""
-#         sections = []
-#         for page in reader.pages:
-#             page_text = page.extract_text() or ""
-#             sections.append(page_text)
-#             text += page_text
-#             if len(text) > max_chars:
-#                 text = text[:max_chars] + "\n\n... (내용이 길어서 일부만 표시됩니다)"
-#                 break
-#         metadata = reader.metadata or {}
-#         return text.strip(), metadata, sections  # 섹션별 텍스트 반환
-#     except Exception as e:
-#         return f"❌ PDF 파일을 처리할 수 없습니다: {e}", None, None
-    
-    
 
 
 def fetch_pdf_text(url, max_chars=8000):
