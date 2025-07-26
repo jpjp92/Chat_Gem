@@ -12,6 +12,9 @@ from config.env import *
 # Set custom CSS for styling
 from config.style import GEMINI_CUSTOM_CSS
 
+# CSS for login page
+from config.logincss import TRENDY_LOGIN_CSS
+
 # Set prompts and functions for Gemini interactions
 from config.prompts import (
     get_system_prompt,
@@ -147,31 +150,114 @@ def validate_nickname(nickname):
     return True, "유효한 닉네임입니다."
 
 # 개선된 show_login_page 함수
-def show_login_page():
-    """로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
-    st.title("로그인 🤗")
-    with st.form("login_form"):
-        nickname = st.text_input("닉네임", placeholder="예: 후안")
-        submit_button = st.form_submit_button("시작하기 🚀")
+# def show_login_page():
+#     """로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
+#     st.title("로그인 🤗")
+#     with st.form("login_form"):
+#         nickname = st.text_input("닉네임", placeholder="예: 후안")
+#         submit_button = st.form_submit_button("시작하기 🚀")
 
-        if submit_button and nickname:
-            is_valid, message = validate_nickname(nickname)
-            if not is_valid:
-                st.error(message)
-                return
+#         if submit_button and nickname:
+#             is_valid, message = validate_nickname(nickname)
+#             if not is_valid:
+#                 st.error(message)
+#                 return
             
-            try:
-                user_id, is_existing = create_or_get_user(nickname)
-                st.session_state.user_id = user_id
-                st.session_state.is_logged_in = True
+#             try:
+#                 user_id, is_existing = create_or_get_user(nickname)
+#                 st.session_state.user_id = user_id
+#                 st.session_state.is_logged_in = True
                 
-                # 로그인 성공 시, initialize_session_state에서 처리하므로 여기서 세션 생성 불필요
-                welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
-                st.success(welcome_message)
-                st.rerun()
-            except Exception as e:
-                logger.error(f"로그인 오류: {e}")
-                st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
+#                 # 로그인 성공 시, initialize_session_state에서 처리하므로 여기서 세션 생성 불필요
+#                 welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
+#                 st.success(welcome_message)
+#                 st.rerun()
+#             except Exception as e:
+#                 logger.error(f"로그인 오류: {e}")
+#                 st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
+
+def show_login_page():
+    """트렌디한 로그인 페이지를 표시하고 사용자 입력을 처리합니다."""
+    
+    # 트렌디한 CSS 적용
+    st.markdown(TRENDY_LOGIN_CSS, unsafe_allow_html=True)
+    
+    # 중앙 정렬을 위한 컨테이너
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # 헤더
+        st.markdown("""
+        <div style='text-align: center; margin-bottom: 2rem;'>
+            <h1 style='font-size: 3rem; font-weight: 800; 
+                      background: linear-gradient(135deg, #fff, #f0f0f0);
+                      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                      margin: 0; text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);'>
+                ✨ Chat Gem
+            </h1>
+            <p style='color: rgba(255, 255, 255, 0.8); font-size: 1.2rem; margin-top: 0.5rem;'>
+                AI와 함께하는 새로운 대화 경험
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 로그인 폼
+        with st.form("login_form"):
+            nickname = st.text_input(
+                "닉네임", 
+                placeholder="멋진 이름을 입력해주세요 ✨",
+                help="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
+            )
+            
+            submit_button = st.form_submit_button("🚀 시작하기")
+
+            if submit_button and nickname:
+                is_valid, message = validate_nickname(nickname)
+                if not is_valid:
+                    st.error(message)
+                    return
+                
+                try:
+                    user_id, is_existing = create_or_get_user(nickname)
+                    st.session_state.user_id = user_id
+                    st.session_state.is_logged_in = True
+                    
+                    welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
+                    st.success(welcome_message)
+                    st.balloons()
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    logger.error(f"로그인 오류: {e}")
+                    st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
+        
+        # 기능 소개 섹션
+        st.markdown("---")
+        st.markdown("""
+        <div class="feature-section">
+            <h3 style='margin-bottom: 1rem;'>🌟 주요 기능</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <span class="feature-icon">🌐</span>
+                    <div class="feature-text">웹 요약</div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🎥</span>
+                    <div class="feature-text">유튜브 요약</div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📄</span>
+                    <div class="feature-text">PDF 분석</div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🖼️</span>
+                    <div class="feature-text">이미지 분석</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 
 def create_new_chat_session():
     """새 채팅 세션 생성"""
