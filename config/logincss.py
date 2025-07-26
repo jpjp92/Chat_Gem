@@ -93,27 +93,27 @@ TRENDY_LOGIN_CSS = """
 
 
 /* 입력 필드 스타일링 - 수정 부분 */
-.stTextInput > div > div > input {
-    background: rgba(255, 255, 255, 0.15) !important;  /* 기존: 0.1 → 0.15로 더 밝게 */
-    border: 2px solid rgba(255, 255, 255, 0.3) !important;  /* 기존: 0.2 → 0.3으로 더 선명하게 */
-    border-radius: 16px !important;
-    color: white !important;
-    font-size: 1.1rem !important;
-    padding: 1rem 1.25rem !important;
-    transition: all 0.3s ease !important;
-    backdrop-filter: blur(10px);
-}
+# .stTextInput > div > div > input {
+#     background: rgba(255, 255, 255, 0.15) !important;  /* 기존: 0.1 → 0.15로 더 밝게 */
+#     border: 2px solid rgba(255, 255, 255, 0.3) !important;  /* 기존: 0.2 → 0.3으로 더 선명하게 */
+#     border-radius: 16px !important;
+#     color: white !important;
+#     font-size: 1.1rem !important;
+#     padding: 1rem 1.25rem !important;
+#     transition: all 0.3s ease !important;
+#     backdrop-filter: blur(10px);
+# }
 
-.stTextInput > div > div > input:focus {
-    border-color: rgba(255, 255, 255, 0.7) !important;  /* 기존: 0.6 → 0.7로 더 밝게 */
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3) !important;  /* 기존: 0.2 → 0.3으로 글로우 강화 */
-    background: rgba(255, 255, 255, 0.2) !important;  /* 기존: 0.15 → 0.2로 포커스 시 더 밝게 */
-    outline: none !important;
-}
+# .stTextInput > div > div > input:focus {
+#     border-color: rgba(255, 255, 255, 0.7) !important;  /* 기존: 0.6 → 0.7로 더 밝게 */
+#     box-shadow: 0 0 20px rgba(255, 255, 255, 0.3) !important;  /* 기존: 0.2 → 0.3으로 글로우 강화 */
+#     background: rgba(255, 255, 255, 0.2) !important;  /* 기존: 0.15 → 0.2로 포커스 시 더 밝게 */
+#     outline: none !important;
+# }
 
-.stTextInput > div > div > input::placeholder {
-    color: rgba(255, 255, 255, 0.7) !important;  /* 기존: 0.6 → 0.7로 플레이스홀더 더 선명하게 */
-}
+# .stTextInput > div > div > input::placeholder {
+#     color: rgba(255, 255, 255, 0.7) !important;  /* 기존: 0.6 → 0.7로 플레이스홀더 더 선명하게 */
+# }
 
 /* 레이블 스타일 */
 # .stTextInput label {
