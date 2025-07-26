@@ -18,7 +18,8 @@ from config.logincss import TRENDY_LOGIN_CSS
 # Set prompts and functions for Gemini interactions
 from config.prompts import (
     get_system_prompt,
-    analyze_image_with_gemini,
+    # analyze_image_with_gemini,
+    analyze_image_with_gemini_multiturn,
     summarize_youtube_with_gemini,
     summarize_webpage_with_gemini,
     analyze_pdf_with_gemini_multiturn,
@@ -623,14 +624,24 @@ def show_chat_dashboard():
                         # sections 매개변수 추가
                         response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, pdf_url, sections)
                         st.session_state.chat_history = chat_session.history
+                # elif is_image_analysis and has_images:
+                #     status.update(label="📸 이미지를 분석하는 중...")
+                #     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
+                #     if all(img is not None for img in images):
+                #         chat_session = model.start_chat(history=[])
+                #         response = analyze_image_with_gemini(images, user_input, chat_session, detected_lang)
+                #     else:
+                #         response = "❌ 이미지 처리 중 오류가 발생했습니다."
                 elif is_image_analysis and has_images:
                     status.update(label="📸 이미지를 분석하는 중...")
                     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
                     if all(img is not None for img in images):
-                        chat_session = model.start_chat(history=[])
-                        response = analyze_image_with_gemini(images, user_input, chat_session, detected_lang)
+                        chat_session = model.start_chat(history=st.session_state.chat_history)  # 기존 히스토리 사용
+                        response = analyze_image_with_gemini_multiturn(images, user_input, chat_session, detected_lang)
+                        st.session_state.chat_history = chat_session.history  # 히스토리 업데이트
                     else:
                         response = "❌ 이미지 처리 중 오류가 발생했습니다."
+                        
                 else:
                     status.update(label="💬 응답을 생성하는 중...")
                     chat_session = model.start_chat(history=st.session_state.chat_history)
