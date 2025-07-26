@@ -38,24 +38,66 @@ def is_youtube_url(url):
     except:
         return False
 
+# def get_youtube_transcript(video_id):
+#     """유튜브 비디오의 자막 가져오기"""
+#     try:
+#         try:
+#             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
+#         except:
+#             try:
+#                 transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+#             except:
+#                 transcript = YouTubeTranscriptApi.get_transcript(video_id)
+#         full_text = ' '.join([entry['text'] for entry in transcript])
+#         max_chars = 15000
+#         if len(full_text) > max_chars:
+#             full_text = full_text[:max_chars] + "\n\n... (자막이 길어서 일부만 표시됩니다)"
+#         return full_text
+#     except Exception as e:
+#         logger.error(f"유튜브 자막 추출 오류: {str(e)}")
+#         return None
+
 def get_youtube_transcript(video_id):
-    """유튜브 비디오의 자막 가져오기"""
+    """유튜브 비디오의 자막을 가져옵니다."""
     try:
+        # 1. youtube_transcript_api로 자막 추출 시도
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])  # 한국어 자막
         except:
             try:
-                transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+                transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])  # 영어 자막
             except:
-                transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        full_text = ' '.join([entry['text'] for entry in transcript])
-        max_chars = 15000
-        if len(full_text) > max_chars:
-            full_text = full_text[:max_chars] + "\n\n... (자막이 길어서 일부만 표시됩니다)"
-        return full_text
+                transcript = YouTubeTranscriptApi.get_transcript(video_id)  # 기본 언어 자막
+        full_text = ' '.join(entry['text'] for entry in transcript)
     except Exception as e:
-        logger.error(f"유튜브 자막 추출 오류: {str(e)}")
-        return None
+        logger.warning(f"youtube_transcript_api 실패: {str(e)}, yt_dlp로 시도")
+        # 2. yt_dlp로 대체 시도
+        try:
+            ydl_opts = {
+                'skip_download': True,  # 비디오 다운로드 안 함
+                'writesubtitles': True,  # 자막 추출
+                'subtitleslangs': ['ko', 'en'],  # 한국어, 영어 자막 우선
+                'writeautomaticsub': True,  # 자동 생성 자막 포함
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                subtitles = info.get('subtitles', {}) or info.get('automatic_captions', {})
+                for lang in ['ko', 'en']:
+                    if lang in subtitles:
+                        full_text = ' '.join(entry['text'] for entry in subtitles[lang])
+                        break
+                else:
+                    logger.error("자막을 찾을 수 없습니다.")
+                    return None
+        except Exception as e:
+            logger.error(f"yt_dlp 자막 추출 오류: {str(e)}")
+            return None
+
+    # 3. 텍스트 길이 제한
+    max_chars = 15000
+    if len(full_text) > max_chars:
+        full_text = full_text[:max_chars] + "\n\n... (자막이 길어서 일부만 표시됩니다)"
+    return full_text
 
 def extract_urls_from_text(text):
     """텍스트에서 URL을 추출"""
