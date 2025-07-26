@@ -193,19 +193,16 @@ def show_login_page():
                       background: linear-gradient(135deg, #fff, #f0f0f0);
                       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
                       margin: 0; text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);'>
-                ✨ Chat Gem
+                ✨ Chat with Gemini
             </h1>
-            <p style='color: rgba(255, 255, 255, 0.8); font-size: 1.2rem; margin-top: 0.5rem;'>
-                AI와 함께하는 새로운 대화 경험
-            </p>
         </div>
         """, unsafe_allow_html=True)
         
         # 로그인 폼
         with st.form("login_form"):
             nickname = st.text_input(
-                "닉네임", 
-                placeholder="멋진 이름을 입력해주세요 ✨",
+                "Login", 
+                placeholder="닉네임을 입력해주세요 ✨",
                 help="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
             )
             
@@ -224,40 +221,12 @@ def show_login_page():
                     
                     welcome_message = f"다시 오신 것을 환영합니다, {nickname}님! 🎉" if is_existing else f"환영합니다, {nickname}님! 🎉"
                     st.success(welcome_message)
-                    st.balloons()
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
                     logger.error(f"로그인 오류: {e}")
                     st.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.")
         
-        # 기능 소개 섹션
-        st.markdown("---")
-        st.markdown("""
-        <div class="feature-section">
-            <h3 style='margin-bottom: 1rem;'>🌟 주요 기능</h3>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <span class="feature-icon">🌐</span>
-                    <div class="feature-text">웹 요약</div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🎥</span>
-                    <div class="feature-text">유튜브 요약</div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">📄</span>
-                    <div class="feature-text">PDF 분석</div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🖼️</span>
-                    <div class="feature-text">이미지 분석</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-
 
 def create_new_chat_session():
     """새 채팅 세션 생성"""
