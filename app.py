@@ -193,7 +193,7 @@ def show_login_page():
                       background: linear-gradient(135deg, #fff, #f0f0f0);
                       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
                       margin: 0; text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);'>
-                ✨ Chat with Gemini
+                ✨ Chat with AI
             </h1>
         </div>
         """, unsafe_allow_html=True)
