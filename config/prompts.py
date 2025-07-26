@@ -577,18 +577,108 @@ def analyze_pdf_with_gemini_multiturn(pdf_content, metadata, user_query, chat_se
                 relevant_content = next((s for s in sections if "결론" in s or "conclusion" in s.lower()), pdf_content[:8000])
             elif "소개" in user_query or "introduction" in user_query.lower():
                 relevant_content = next((s for s in sections if "소개" in s or "introduction" in s.lower()), pdf_content[:8000])
-            # 추가 키워드(예: "데이터셋", "방법론")에 대한 섹션 선택 로직 확장 가능
         
+        # 프롬프트 구성
         if detected_lang == "ko":
             if is_summary_request:
-                prompt = f"""{{system_prompt}}\n\n다음 PDF 문서의 내용을 한국어로 요약해주세요.\n\nPDF URL: {}\nPDF 제목: {}\n저자: {}\nPDF 내용 (일부): {}\n\n사용자 질문: {}\n\n요약 지침:\n1. 주요 내용을 {}개 포인트로 정리\n2. 중요한 데이터나 기여도를 포함\n3. 사용자가 특정 질문이 있다면 그에 맞춰 요약\n4. 이모지를 적절히 사용하여 가독성 향상\n5. 반드시 한국어로만 답변하세요\n\n형식:\n📄 **PDF 요약**\n\n🔗 **출처**: {}\n📖 **제목**: {}\n📜 **저자**: {}\n\n📝 **주요 내용**:\n- 포인트 1\n- 포인트 2\n- ...\n\n💡 **핵심**: 주요 메시지나 의의""".format(pdf_url, metadata_info["title"], metadata_info["author"], relevant_content, user_query, point_count, pdf_url, metadata_info["title"], metadata_info["author"])
+                prompt = f"""{system_prompt}
+
+다음 PDF 문서의 내용을 한국어로 요약해주세요.
+
+PDF URL: {pdf_url}
+PDF 제목: {metadata_info["title"]}
+저자: {metadata_info["author"]}
+PDF 내용 (일부): {relevant_content}
+
+사용자 질문: {user_query}
+
+요약 지침:
+1. 주요 내용을 {point_count}개 포인트로 정리
+2. 중요한 데이터나 기여도를 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 요약
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요
+
+형식:
+📄 **PDF 요약**
+
+🔗 **출처**: {pdf_url}
+📖 **제목**: {metadata_info["title"]}
+📜 **저자**: {metadata_info["author"]}
+
+📝 **주요 내용**:
+- 포인트 1
+- 포인트 2
+- ...
+
+💡 **핵심**: 주요 메시지나 의의"""
             else:
-                prompt = f"""{{system_prompt}}\n\n다음 PDF 문서의 내용을 바탕으로 사용자 질문에 답변해주세요.\n\nPDF 제목: {}\n저자: {}\nPDF 내용 (일부): {}\n\n사용자 질문: {}\n\n지침:\n1. PDF 내용을 기반으로 사용자의 질문에 답변\n2. 주요 데이터나 핵심 내용을 포함\n3. 사용자가 특정 질문이 있다면 그에 맞춰 답변\n4. 이모지를 적절히 사용하여 가독성 향상\n5. 반드시 한국어로만 답변하세요""".format(metadata_info["title"], metadata_info["author"], relevant_content, user_query)
+                prompt = f"""{system_prompt}
+
+다음 PDF 문서의 내용을 바탕으로 사용자 질문에 답변해주세요.
+
+PDF 제목: {metadata_info["title"]}
+저자: {metadata_info["author"]}
+PDF 내용 (일부): {relevant_content}
+
+사용자 질문: {user_query}
+
+지침:
+1. PDF 내용을 기반으로 사용자의 질문에 답변
+2. 주요 데이터나 핵심 내용을 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 답변
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요"""
         else:
             if is_summary_request:
-                prompt = f"""{{system_prompt}}\n\nPlease summarize the following PDF document in English.\n\nPDF URL: {}\nPDF Title: {}\nAuthor: {}\nPDF Content (partial): {}\n\nUser Query: {}\n\nSummary Guidelines:\n1. Organize main points into {} key bullets\n2. Include important data or contributions\n3. Focus on user's specific question if provided\n4. Use appropriate emojis for readability\n5. Respond only in English\n\nFormat:\n📄 **PDF Summary**\n\n🔗 **Source**: {}\n📖 **Title**: {}\n📜 **Author**: {}\n\n📝 **Key Points**:\n- Point 1\n- Point 2\n- ...\n\n💡 **Key Insight**: Main message or significance""".format(pdf_url, metadata_info["title"], metadata_info["author"], relevant_content, user_query, point_count, pdf_url, metadata_info["title"], metadata_info["author"])
+                prompt = f"""{system_prompt}
+
+Please summarize the following PDF document in English.
+
+PDF URL: {pdf_url}
+PDF Title: {metadata_info["title"]}
+Author: {metadata_info["author"]}
+PDF Content (partial): {relevant_content}
+
+User Query: {user_query}
+
+Summary Guidelines:
+1. Organize main points into {point_count} key bullets
+2. Include important data or contributions
+3. Focus on user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English
+
+Format:
+📄 **PDF Summary**
+
+🔗 **Source**: {pdf_url}
+📖 **Title**: {metadata_info["title"]}
+📜 **Author**: {metadata_info["author"]}
+
+📝 **Key Points**:
+- Point 1
+- Point 2
+- ...
+
+💡 **Key Insight**: Main message or significance"""
             else:
-                prompt = f"""{{system_prompt}}\n\nPlease respond to the user's query based on the following PDF document.\n\nPDF Title: {}\nAuthor: {}\nPDF Content (partial): {}\n\nUser Query: {}\n\nGuidelines:\n1. Answer based on the PDF content\n2. Include key data or main points\n3. Address the user's specific question if provided\n4. Use appropriate emojis for readability\n5. Respond only in English""".format(metadata_info["title"], metadata_info["author"], relevant_content, user_query)
+                prompt = f"""{system_prompt}
+
+Please respond to the user's query based on the following PDF document.
+
+PDF Title: {metadata_info["title"]}
+Author: {metadata_info["author"]}
+PDF Content (partial): {relevant_content}
+
+User Query: {user_query}
+
+Guidelines:
+1. Answer based on the PDF content
+2. Include key data or main points
+3. Address the user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English"""
         
         response = chat_session.send_message(prompt)
         return response.text
@@ -601,5 +691,4 @@ def analyze_pdf_with_gemini_multiturn(pdf_content, metadata, user_query, chat_se
         else:
             error_msg = "PDF 분석 중 오류가 발생했습니다." if detected_lang == "ko" else "An error occurred during PDF analysis."
         return error_msg
-
 
