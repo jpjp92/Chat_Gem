@@ -729,6 +729,7 @@ def summarize_webpage_with_gemini(url, user_query, model, detected_lang):
         logger.error(f"웹페이지 요약 중 오류: {str(e)}")
         return f"❌ 웹페이지 요약 중 오류가 발생했습니다: {str(e)}"
 
+# 정의됨
 def analyze_pdf_with_gemini_multiturn(pdf_content, metadata, user_query, chat_session, detected_lang="ko", pdf_url="", sections=None):
     """PDF 내용을 기존 채팅 세션에 연결하여 멀티턴 대화로 분석 또는 요약"""
     try:
