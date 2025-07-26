@@ -1064,7 +1064,7 @@ def show_chat_dashboard():
     model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
 
     with st.sidebar:
-        st.header(⚙️ Settings")
+        st.header("⚙️ Settings")
         if st.button("💬 새 대화", key="new_chat", help="새로운 대화 세션을 시작합니다", use_container_width=True):
             create_new_chat_session()
             st.rerun()
