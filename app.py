@@ -1,3 +1,4 @@
+# app.py
 # Chat_Gem - Streamlit App for Gemini AI Interactions
 import sys
 import os
