@@ -92,7 +92,7 @@ TRENDY_LOGIN_CSS = """
 }
 
 
-/* 입력 필드 스타일링 - 수정 부분 */
+/* 입력 필드 스타일링 - 제외함
 # .stTextInput > div > div > input {
 #     background: rgba(255, 255, 255, 0.15) !important;  /* 기존: 0.1 → 0.15로 더 밝게 */
 #     border: 2px solid rgba(255, 255, 255, 0.3) !important;  /* 기존: 0.2 → 0.3으로 더 선명하게 */
