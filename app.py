@@ -1437,6 +1437,22 @@ from config.utils import (
     analyze_youtube_with_gemini,  # 새로운 유틸리티 함수 추가
 )
 
+# from config.utils import (
+#     extract_video_id,
+#     is_youtube_url,
+#     extract_urls_from_text,
+#     is_youtube_summarization_request,
+#     is_url_summarization_request,
+#     is_pdf_url,
+#     is_pdf_summarization_request,
+#     fetch_webpage_content,
+#     fetch_pdf_text,
+#     analyze_youtube_with_gemini,  # 새로운 함수
+# )
+
+
+
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
