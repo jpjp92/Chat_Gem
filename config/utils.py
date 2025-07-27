@@ -581,20 +581,21 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
                 logger.debug(f"{lang} 자막 추출 실패: {str(e)}")
                 continue
         
-        # 자동 언어로 시도
-        try:
-            transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
-            text = ' '.join(entry['text'] for entry in transcript_data)
-            logger.info("자동 언어 자막 추출 성공")
-            return {'success': True, 'language': 'auto', 'text': text[:15000]}
-        except Exception as e:
-            logger.debug(f"자동 언어 자막 추출 실패: {str(e)}")
-        
-        # 사용 가능한 언어 목록으로 시도
+        # 사용 가능한 언어 목록으로 시도 (번역 자막 포함)
         try:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             for transcript in transcript_list:
                 try:
+                    if transcript.is_translatable:
+                        for lang in languages:
+                            try:
+                                transcript_data = transcript.translate(lang).fetch()
+                                text = ' '.join(entry['text'] for entry in transcript_data)
+                                logger.info(f"{lang} 번역 자막 추출 성공")
+                                return {'success': True, 'language': lang, 'text': text[:15000]}
+                            except Exception as e:
+                                logger.debug(f"{lang} 번역 자막 추출 실패: {str(e)}")
+                                continue
                     transcript_data = transcript.fetch()
                     text = ' '.join(entry['text'] for entry in transcript_data)
                     logger.info(f"{transcript.language_code} 자막 추출 성공")
