@@ -1737,7 +1737,7 @@ def detect_language(text):
     return "ko" if korean_ratio > 0.3 else "en"
 
 def create_summary(text: str, target_length: int = 400) -> str:
-    """글자수 기준 요약 생성 (로컬 테스트 코드 반영)"""
+    """글자수 기준 요약 생성 (폴백용)"""
     sentences = re.split(r'[.!?]\s+', text)
     sentences = [s.strip() for s in sentences if s.strip() and len(s) > 15]
     
@@ -1770,7 +1770,6 @@ def create_summary(text: str, target_length: int = 400) -> str:
         summary = text[:target_length-3] + "..."
     
     return summary.strip()
-
 
 def show_chat_dashboard():
     """기존 채팅 대시보드 표시"""
@@ -2054,7 +2053,8 @@ def show_chat_dashboard():
                                 st.session_state.video_id = video_id
                             transcript_result = st.session_state.transcript_result
                             if transcript_result['success']:
-                                summary = create_summary(transcript_result['text'], 400)
+                                # 자막 있으면 Gemini로 요약
+                                summary = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
                                 response = (
                                     f"📹 비디오 ID: {video_id}\n"
                                     f"📝 원본 길이: {len(transcript_result['text'])} 문자\n"
@@ -2069,9 +2069,14 @@ def show_chat_dashboard():
                                     st.session_state.fallback_info = get_youtube_info_fallback(video_id)
                                 fallback_info = st.session_state.fallback_info
                                 if fallback_info['success']:
+                                    fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
                                     if "요약" in user_input.lower():
-                                        fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
-                                        summary = create_summary(fallback_text, 400)
+                                        try:
+                                            # 메타데이터도 Gemini로 요약 시도
+                                            summary = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
+                                        except Exception as e:
+                                            logger.error(f"Gemini 요약 오류: {str(e)}, create_summary로 폴백")
+                                            summary = create_summary(fallback_text, 400)
                                         response = (
                                             f"📹 비디오 ID: {video_id}\n"
                                             f"📝 원본 길이: {len(fallback_text)} 문자\n"
