@@ -193,7 +193,6 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from youtube_analyzer import YouTubeAnalyzer
 from config.env import GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -403,18 +402,3 @@ def get_youtube_info_fallback(video_id: str) -> Dict:
     except Exception as e:
         logger.error(f"대체 정보 추출 오류: {str(e)}")
         return {'success': False, 'error': f'대체 정보 추출 실패: {str(e)}'}
-
-def youtube_analyzer_fallback(video_url: str) -> Dict:
-    """YouTubeAnalyzer를 사용한 폴백 요약"""
-    try:
-        analyzer = YouTubeAnalyzer(api_key=GEMINI_API_KEY)
-        result = analyzer.get_video_summary(video_url, max_lines=5)
-        if result['status'] == 'success':
-            logger.info(f"YouTubeAnalyzer 요약 성공: {video_url}")
-            return {'success': True, 'text': result['summary'], 'language': 'ko'}
-        else:
-            logger.error(f"YouTubeAnalyzer 요약 실패: {result['error']}")
-            return {'success': False, 'error': f'YouTubeAnalyzer 오류: {result["error"]}'}
-    except Exception as e:
-        logger.error(f"YouTubeAnalyzer 초기화/실행 오류: {str(e)}")
-        return {'success': False, 'error': f'YouTubeAnalyzer 오류: {str(e)}'}
