@@ -1437,6 +1437,7 @@ from config.utils import (
     is_pdf_url,
     is_pdf_summarization_request,
     fetch_pdf_text,
+    extract_subtitles,  # 추가: extract_subtitles 임포트
 )
 
 # Logging setup
@@ -2011,25 +2012,61 @@ def show_chat_dashboard():
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
+                            # 수정: get_youtube_transcript를 호출하고 extract_subtitles 통합
                             transcript_result = get_youtube_transcript(video_id)
                             if transcript_result['success']:
                                 response = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
                             else:
-                                fallback_info = get_youtube_info_fallback(video_id)
-                                if fallback_info['success']:
-                                    if "요약" in user_input.lower():
-                                        # 대체 정보를 Gemini로 요약
-                                        fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
-                                        response = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
-                                    else:
-                                        response = (
-                                            f"⚠️ 자막을 가져올 수 없습니다: {transcript_result['error']}\n"
-                                            f"비디오 정보:\n제목: {fallback_info['title']}\n설명: {fallback_info['description']}\n길이: {fallback_info['duration']}초\n"
-                                            f"대체 정보를 요약하려면 '요약'이라고 입력하세요."
-                                        )
-                                    logger.info(f"대체 정보 응답: {response}")
-                                else:
-                                    response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
+                                # yt-dlp로 자막 파일 다운로드 시도
+                                ydl_opts = {
+                                    'skip_download': True,
+                                    'writesubtitles': True,
+                                    'writeautomaticsub': True,
+                                    'subtitleslangs': ['ko', 'en'],
+                                    'subtitlesformat': 'srt',  # srt 형식 우선
+                                    'noimpersonate': True,    # 클라이언트 위장 비활성화
+                                    'http_timeout': 10,
+                                    'format': 'best',         # ffmpeg 경고 방지
+                                    'outtmpl': 'subtitles.%(ext)s',  # 자막 파일 출력 경로
+                                }
+                                try:
+                                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                        info = ydl.extract_info(youtube_url, download=True)  # 자막 다운로드
+                                        subtitles = extract_subtitles(info)
+                                        if subtitles and 'ko' in subtitles:
+                                            # srt 파일 읽기
+                                            with open('subtitles.srt', 'r', encoding='utf-8') as f:
+                                                subtitle_text = f.read()
+                                            response = summarize_youtube_with_gemini(youtube_url, subtitle_text, model, detected_lang)
+                                            # 임시 파일 삭제
+                                            if os.path.exists('subtitles.srt'):
+                                                os.remove('subtitles.srt')
+                                        elif subtitles and 'en' in subtitles:
+                                            # 영어 자막 대체
+                                            with open('subtitles.srt', 'r', encoding='utf-8') as f:
+                                                subtitle_text = f.read()
+                                            response = summarize_youtube_with_gemini(youtube_url, subtitle_text, model, detected_lang)
+                                            if os.path.exists('subtitles.srt'):
+                                                os.remove('subtitles.srt')
+                                        else:
+                                            # 대체 정보로 전환
+                                            fallback_info = get_youtube_info_fallback(video_id)
+                                            if fallback_info['success']:
+                                                if "요약" in user_input.lower():
+                                                    fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
+                                                    response = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
+                                                else:
+                                                    response = (
+                                                        f"⚠️ 자막을 가져올 수 없습니다: {transcript_result['error']}\n"
+                                                        f"비디오 정보:\n제목: {fallback_info['title']}\n설명: {fallback_info['description']}\n길이: {fallback_info['duration']}초\n"
+                                                        f"대체 정보를 요약하려면 '요약'이라고 입력하세요."
+                                                    )
+                                                logger.info(f"대체 정보 응답: {response}")
+                                            else:
+                                                response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
+                                except Exception as e:
+                                    logger.error(f"yt-dlp 자막 다운로드 오류: {str(e)}")
+                                    response = f"❌ 자막 다운로드 중 오류가 발생했습니다: {str(e)}"
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"

@@ -449,6 +449,38 @@ retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503,
 session.mount('https://', HTTPAdapter(max_retries=retries))
 YouTubeTranscriptApi._http_client = session
 
+
+def extract_subtitles(info):
+    subtitles = info.get('subtitles', {}) or info.get('automatic_captions', {})
+    if not subtitles:
+        logger.warning("No subtitles available in info dictionary")
+        return None
+
+    supported_formats = ['srt', 'vtt']
+    extracted_subtitles = {}
+
+    for lang, subtitle_list in subtitles.items():
+        for subtitle in subtitle_list:
+            subtitle_format = subtitle.get('ext')
+            if subtitle_format not in supported_formats:
+                logger.warning(f"Skipping unsupported subtitle format: {subtitle_format}")
+                continue
+            try:
+                # 자막 URL 및 데이터 처리
+                subtitle_url = subtitle.get('url')
+                logger.debug(f"Processing subtitle: lang={lang}, format={subtitle_format}, url={subtitle_url}")
+                extracted_subtitles[lang] = extracted_subtitles.get(lang, []) + [subtitle]
+            except Exception as e:
+                logger.error(f"Error processing subtitle for lang={lang}: {str(e)}")
+                continue
+
+    if not extracted_subtitles:
+        logger.error("No supported subtitles (srt/vtt) found")
+        return None
+
+    return extracted_subtitles
+
+
 def extract_video_id(url: str) -> Optional[str]:
     """유튜브 URL에서 비디오 ID를 추출합니다 (Shorts 포함)."""
     try:
