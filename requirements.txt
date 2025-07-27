@@ -13,8 +13,8 @@ diskcache
 curl_cffi>=0.5.0
 pypdf>=3.0.0
 google-generativeai
-youtube_transcript_api==0.6.2
-yt-dlp
-webvtt-py
+# youtube_transcript_api==0.6.2
+# yt-dlp
+# webvtt-py
 aiohttp
 nest_asyncio
