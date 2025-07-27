@@ -1399,7 +1399,6 @@
 #     main()
 
 ### 테스트2:
-
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -1437,7 +1436,7 @@ from config.utils import (
     is_pdf_url,
     is_pdf_summarization_request,
     fetch_pdf_text,
-    youtube_analyzer_fallback,
+    get_youtube_info_fallback,
 )
 
 # Logging setup
@@ -1492,7 +1491,7 @@ def initialize_session_state():
     if "usage_data" not in st.session_state:
         today = datetime.now().strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
-    # PDF 캐싱을 위한 세션 상태 추가
+    # PDF 캐싱
     if "current_pdf_url" not in st.session_state:
         st.session_state.current_pdf_url = None
     if "current_pdf_content" not in st.session_state:
@@ -1509,7 +1508,7 @@ def initialize_session_state():
     if "fallback_info" not in st.session_state:
         st.session_state.fallback_info = None
 
-    # 로그인 상태인데 현재 세션이 없으면 새 세션을 생성하거나 기존 세션을 로드
+    # 로그인 상태인데 현재 세션이 없으면 새 세션 생성/로드
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
         if st.session_state.chat_sessions:
             st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
@@ -2047,44 +2046,32 @@ def show_chat_dashboard():
                                     f"{transcript_result['text'][:500] + '...' if len(transcript_result['text']) > 500 else transcript_result['text']}\n{'-' * 50}"
                                 )
                             else:
-                                logger.warning("No subtitles found, falling back to YouTubeAnalyzer")
-                                # YouTubeAnalyzer로 폴백
-                                analyzer_result = youtube_analyzer_fallback(youtube_url)
-                                if analyzer_result['success']:
-                                    summary = analyzer_result['text']
-                                    response = (
-                                        f"📹 비디오 ID: {video_id}\n"
-                                        f"📝 원본 길이: N/A (YouTubeAnalyzer)\n"
-                                        f"📄 요약 길이: {len(summary)} 문자\n\n"
-                                        f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
-                                    )
+                                logger.warning(f"No subtitles found: {transcript_result['error']}, falling back to metadata")
+                                if 'fallback_info' not in st.session_state or st.session_state.get('video_id') != video_id:
+                                    st.session_state.fallback_info = get_youtube_info_fallback(video_id)
+                                fallback_info = st.session_state.fallback_info
+                                if fallback_info['success']:
+                                    fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
+                                    try:
+                                        # 메타데이터 Gemini 요약
+                                        summary = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
+                                        response = (
+                                            f"📹 비디오 ID: {video_id}\n"
+                                            f"📝 원본 길이: {len(fallback_text)} 문자\n"
+                                            f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                            f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Gemini 요약 오류: {str(e)}, create_summary로 최종 폴백")
+                                        summary = create_summary(fallback_text, 400)
+                                        response = (
+                                            f"📹 비디오 ID: {video_id}\n"
+                                            f"📝 원본 길이: {len(fallback_text)} 문자\n"
+                                            f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                            f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
+                                        )
                                 else:
-                                    logger.warning(f"YouTubeAnalyzer 실패: {analyzer_result['error']}, 메타데이터로 폴백")
-                                    if 'fallback_info' not in st.session_state or st.session_state.get('video_id') != video_id:
-                                        st.session_state.fallback_info = get_youtube_info_fallback(video_id)
-                                    fallback_info = st.session_state.fallback_info
-                                    if fallback_info['success']:
-                                        fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
-                                        try:
-                                            # 메타데이터 Gemini 요약
-                                            summary = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
-                                            response = (
-                                                f"📹 비디오 ID: {video_id}\n"
-                                                f"📝 원본 길이: {len(fallback_text)} 문자\n"
-                                                f"📄 요약 길이: {len(summary)} 문자\n\n"
-                                                f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
-                                            )
-                                        except Exception as e:
-                                            logger.error(f"Gemini 요약 오류: {str(e)}, create_summary로 최종 폴백")
-                                            summary = create_summary(fallback_text, 400)
-                                            response = (
-                                                f"📹 비디오 ID: {video_id}\n"
-                                                f"📝 원본 길이: {len(fallback_text)} 문자\n"
-                                                f"📄 요약 길이: {len(summary)} 문자\n\n"
-                                                f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
-                                            )
-                                    else:
-                                        response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
+                                    response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
