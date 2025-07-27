@@ -190,7 +190,7 @@
 import re
 import os
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import time
 from config.env import GEMINI_API_KEY
 import google.generativeai as genai
