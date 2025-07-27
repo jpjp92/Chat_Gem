@@ -19,6 +19,7 @@ import threading
 import multiprocessing
 import asyncio
 import atexit
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from functools import lru_cache
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
@@ -30,7 +31,7 @@ import streamlit as st
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
-from youtube_transcript_api import YouTubeTranscriptApi
+# from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 from pypdf import PdfReader
 from PIL import Image
@@ -46,4 +47,4 @@ from langdetect import detect
 from requests.adapters import HTTPAdapter
 from supabase import create_client
 from timezonefinder import TimezoneFinder
-import yt_dlp
+# import yt_dlp
