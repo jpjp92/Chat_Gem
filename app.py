@@ -2021,7 +2021,9 @@ def show_chat_dashboard():
                                 response = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
                             else:
                                 logger.warning("No subtitles found, falling back to metadata")
-                                fallback_info = get_youtube_info_fallback(video_id)
+                                if 'fallback_info' not in st.session_state or st.session_state.get('video_id') != video_id:
+                                    st.session_state.fallback_info = get_youtube_info_fallback(video_id)
+                                fallback_info = st.session_state.fallback_info
                                 if fallback_info['success']:
                                     if "요약" in user_input.lower():
                                         fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
