@@ -1736,6 +1736,42 @@ def detect_language(text):
     korean_ratio = korean_chars / total_chars if total_chars > 0 else 0
     return "ko" if korean_ratio > 0.3 else "en"
 
+def create_summary(text: str, target_length: int = 400) -> str:
+    """글자수 기준 요약 생성 (로컬 테스트 코드 반영)"""
+    sentences = re.split(r'[.!?]\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s) > 15]
+    
+    if not sentences:
+        return text[:target_length] + "..." if len(text) > target_length else text
+    
+    sentence_scores = []
+    for i, sentence in enumerate(sentences):
+        length_score = len(sentence.split())
+        position_score = max(0, 10 - i * 0.5)
+        total_score = length_score + position_score
+        sentence_scores.append((total_score, sentence))
+    
+    sentence_scores.sort(reverse=True)
+    
+    summary = ""
+    for score, sentence in sentence_scores:
+        test_summary = summary + sentence + ". "
+        if len(test_summary) <= target_length:
+            summary = test_summary
+        elif len(summary) < 100:
+            remaining = target_length - len(summary) - 3
+            if remaining > 50:
+                summary += sentence[:remaining] + "..."
+                break
+        else:
+            break
+    
+    if len(summary) < 50:
+        summary = text[:target_length-3] + "..."
+    
+    return summary.strip()
+
+
 def show_chat_dashboard():
     """기존 채팅 대시보드 표시"""
     logger.info(f"System language: {st.session_state.system_language}")
@@ -2018,7 +2054,15 @@ def show_chat_dashboard():
                                 st.session_state.video_id = video_id
                             transcript_result = st.session_state.transcript_result
                             if transcript_result['success']:
-                                response = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
+                                summary = create_summary(transcript_result['text'], 400)
+                                response = (
+                                    f"📹 비디오 ID: {video_id}\n"
+                                    f"📝 원본 길이: {len(transcript_result['text'])} 문자\n"
+                                    f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                    f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}\n\n"
+                                    f"📜 원본 자막 (처음 500자):\n{'-' * 50}\n"
+                                    f"{transcript_result['text'][:500] + '...' if len(transcript_result['text']) > 500 else transcript_result['text']}\n{'-' * 50}"
+                                )
                             else:
                                 logger.warning("No subtitles found, falling back to metadata")
                                 if 'fallback_info' not in st.session_state or st.session_state.get('video_id') != video_id:
@@ -2027,7 +2071,13 @@ def show_chat_dashboard():
                                 if fallback_info['success']:
                                     if "요약" in user_input.lower():
                                         fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
-                                        response = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
+                                        summary = create_summary(fallback_text, 400)
+                                        response = (
+                                            f"📹 비디오 ID: {video_id}\n"
+                                            f"📝 원본 길이: {len(fallback_text)} 문자\n"
+                                            f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                            f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
+                                        )
                                     else:
                                         response = (
                                             f"⚠️ 자막을 가져올 수 없습니다: {transcript_result['error']}\n"
@@ -2039,7 +2089,7 @@ def show_chat_dashboard():
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
-                                        
+                                                        
                         
                 elif is_webpage_request:
                     status.update(label="🌐 웹페이지 내용을 가져오는 중...")

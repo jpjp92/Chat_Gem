@@ -581,11 +581,12 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
                 logger.debug(f"{lang} 자막 추출 실패: {str(e)}")
                 continue
         
-        # 사용 가능한 언어 목록으로 시도 (번역 자막 포함)
+        # 사용 가능한 언어 및 번역 자막 시도
         try:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             for transcript in transcript_list:
                 try:
+                    # 번역 자막 시도
                     if transcript.is_translatable:
                         for lang in languages:
                             try:
@@ -596,6 +597,7 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
                             except Exception as e:
                                 logger.debug(f"{lang} 번역 자막 추출 실패: {str(e)}")
                                 continue
+                    # 원본 자막 시도
                     transcript_data = transcript.fetch()
                     text = ' '.join(entry['text'] for entry in transcript_data)
                     logger.info(f"{transcript.language_code} 자막 추출 성공")
@@ -617,42 +619,34 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
                 'skip_download': True,
                 'writesubtitles': True,
                 'writeautomaticsub': True,
-                'subtitleslangs': ['ko', 'en'],
+                'subtitleslangs': ['ko', 'en', 'ko-orig'],  # 번역 및 원본 자막 포함
                 'subtitlesformat': 'srt',  # srt 우선
                 'noimpersonate': True,     # 클라이언트 위장 비활성화
                 'http_timeout': 15,        # 타임아웃 15초
                 'format': 'best',          # ffmpeg 경고 방지
                 'outtmpl': 'subtitles.%(lang)s.%(ext)s',  # 언어별 파일명
                 'verbose': True,           # 디버깅 로그 활성화
+                'geo_bypass': True,        # 지역 제한 우회
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
                 subtitles = extract_subtitles(info)
-                if subtitles and 'ko' in subtitles:
-                    subtitle_file = 'subtitles.ko.srt'
-                    logger.debug(f"Reading Korean subtitle file: {subtitle_file}")
-                    if os.path.exists(subtitle_file):
-                        with open(subtitle_file, 'r', encoding='utf-8') as f:
-                            subtitle_text = f.read()
-                        logger.debug(f"Cleaning up subtitle file: {subtitle_file}")
-                        os.remove(subtitle_file)
-                        logger.info(f"yt-dlp 자막 추출 성공 (언어: ko)")
-                        return {'success': True, 'language': 'ko', 'text': subtitle_text[:15000]}
-                if subtitles and 'en' in subtitles:
-                    subtitle_file = 'subtitles.en.srt'
-                    logger.debug(f"Reading English subtitle file: {subtitle_file}")
-                    if os.path.exists(subtitle_file):
-                        with open(subtitle_file, 'r', encoding='utf-8') as f:
-                            subtitle_text = f.read()
-                        logger.debug(f"Cleaning up subtitle file: {subtitle_file}")
-                        os.remove(subtitle_file)
-                        logger.info(f"yt-dlp 자막 추출 성공 (언어: en)")
-                        return {'success': True, 'language': 'en', 'text': subtitle_text[:15000]}
+                for lang in ['ko', 'ko-orig', 'en']:
+                    if lang in subtitles:
+                        subtitle_file = f'subtitles.{lang}.srt'
+                        logger.debug(f"Reading subtitle file: {subtitle_file}")
+                        if os.path.exists(subtitle_file):
+                            with open(subtitle_file, 'r', encoding='utf-8') as f:
+                                subtitle_text = f.read()
+                            logger.debug(f"Cleaning up subtitle file: {subtitle_file}")
+                            os.remove(subtitle_file)
+                            logger.info(f"yt-dlp 자막 추출 성공 (언어: {lang})")
+                            return {'success': True, 'language': lang, 'text': subtitle_text[:15000]}
                 logger.error(f"Video {video_id}: yt-dlp로 지원되는 자막을 찾을 수 없습니다")
                 return {'success': False, 'error': f'Video {video_id}: 사용 가능한 자막이 없습니다'}
         except Exception as e:
             logger.error(f"Video {video_id}: yt-dlp 자막 추출 오류 (시도 {attempt + 1}/3): {str(e)}")
-            if 'HTTP Error 429' in str(e):
+            if 'HTTP Error 429' in str(e) or 'LOGIN_REQUIRED' in str(e):
                 time.sleep(2 ** attempt)  # 지수 백오프
                 continue
             return {'success': False, 'error': f'Video {video_id}: yt-dlp 오류: {str(e)}'}
@@ -668,6 +662,7 @@ def get_youtube_info_fallback(video_id: str) -> Dict:
             'noimpersonate': True,
             'http_timeout': 15,
             'format': 'best',
+            'geo_bypass': True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
