@@ -1398,7 +1398,6 @@
 #     main()
 
 
-
 # Chat_Gem - Streamlit App for Gemini AI Interactions
 import sys
 import os
@@ -1430,7 +1429,7 @@ from config.utils import (
     extract_video_id,
     is_youtube_url,
     get_youtube_transcript,
-    get_youtube_info_fallback,  # 추가
+    get_youtube_info_fallback,
     extract_urls_from_text,
     is_youtube_summarization_request,
     is_url_summarization_request,
@@ -2018,10 +2017,17 @@ def show_chat_dashboard():
                             else:
                                 fallback_info = get_youtube_info_fallback(video_id)
                                 if fallback_info['success']:
-                                    response = (
-                                        f"⚠️ 자막을 가져올 수 없습니다: {transcript_result['error']}\n"
-                                        f"비디오 정보:\n제목: {fallback_info['title']}\n설명: {fallback_info['description']}\n길이: {fallback_info['duration']}초"
-                                    )
+                                    if "요약" in user_input.lower():
+                                        # 대체 정보를 Gemini로 요약
+                                        fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
+                                        response = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
+                                    else:
+                                        response = (
+                                            f"⚠️ 자막을 가져올 수 없습니다: {transcript_result['error']}\n"
+                                            f"비디오 정보:\n제목: {fallback_info['title']}\n설명: {fallback_info['description']}\n길이: {fallback_info['duration']}초\n"
+                                            f"대체 정보를 요약하려면 '요약'이라고 입력하세요."
+                                        )
+                                    logger.info(f"대체 정보 응답: {response}")
                                 else:
                                     response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
                     except Exception as e:
