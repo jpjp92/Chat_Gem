@@ -185,6 +185,7 @@
 #     except Exception as e:
 #         return f"❌ PDF 파일을 처리할 수 없습니다: {e}", None, None
 
+# config/utils.py
 import re
 import os
 import logging
@@ -296,65 +297,65 @@ def fetch_pdf_text(url: str) -> tuple[str, Dict, Optional[Dict]]:
         logger.error(f"PDF 내용 가져오기 오류: {str(e)}")
         return f"❌ PDF 내용을 가져오는 중 오류가 발생했습니다: {str(e)}", {}, None
 
-def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -> Dict:
-    """유튜브 비디오의 자막을 가져옵니다."""
-    logger.info(f"비디오 ID: {video_id} 자막 추출 시작")
+# def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -> Dict:
+#     """유튜브 비디오의 자막을 가져옵니다."""
+#     logger.info(f"비디오 ID: {video_id} 자막 추출 시작")
     
-    # youtube_transcript_api용 세션 설정
-    session = requests.Session()
-    retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-    session.mount('https://', HTTPAdapter(max_retries=retries))
-    session.headers.update({
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36'
-    })
-    session.timeout = 15
-    YouTubeTranscriptApi._http_client = session
+#     # youtube_transcript_api용 세션 설정
+#     session = requests.Session()
+#     retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+#     session.mount('https://', HTTPAdapter(max_retries=retries))
+#     session.headers.update({
+#         'Accept-Language': 'ko-KR,ko;q=0.9',
+#         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36'
+#     })
+#     session.timeout = 15
+#     YouTubeTranscriptApi._http_client = session
     
-    try:
-        logger.debug("youtube_transcript_api 시도")
-        # 지정된 언어로 시도
-        for lang in languages:
-            try:
-                transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
-                text = ' '.join(entry['text'] for entry in transcript_data)
-                logger.info(f"{lang} 자막 추출 성공")
-                return {'success': True, 'language': lang, 'text': text[:15000]}
-            except Exception as e:
-                logger.debug(f"{lang} 자막 추출 실패: {str(e)}")
-                continue
+#     try:
+#         logger.debug("youtube_transcript_api 시도")
+#         # 지정된 언어로 시도
+#         for lang in languages:
+#             try:
+#                 transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
+#                 text = ' '.join(entry['text'] for entry in transcript_data)
+#                 logger.info(f"{lang} 자막 추출 성공")
+#                 return {'success': True, 'language': lang, 'text': text[:15000]}
+#             except Exception as e:
+#                 logger.debug(f"{lang} 자막 추출 실패: {str(e)}")
+#                 continue
         
-        # 사용 가능한 언어 및 번역 자막 시도
-        try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            for transcript in transcript_list:
-                try:
-                    if transcript.is_translatable:
-                        for lang in languages:
-                            try:
-                                transcript_data = transcript.translate(lang).fetch()
-                                text = ' '.join(entry['text'] for entry in transcript_data)
-                                logger.info(f"{lang} 번역 자막 추출 성공")
-                                return {'success': True, 'language': lang, 'text': text[:15000]}
-                            except Exception as e:
-                                logger.debug(f"{lang} 번역 자막 추출 실패: {str(e)}")
-                                continue
-                    transcript_data = transcript.fetch()
-                    text = ' '.join(entry['text'] for entry in transcript_data)
-                    logger.info(f"{transcript.language_code} 자막 추출 성공")
-                    return {'success': True, 'language': transcript.language_code, 'text': text[:15000]}
-                except Exception as e:
-                    logger.debug(f"{transcript.language_code} 자막 추출 실패: {str(e)}")
-                    continue
-        except Exception as e:
-            logger.warning(f"youtube_transcript_api 실패: {str(e)}")
+#         # 사용 가능한 언어 및 번역 자막 시도
+#         try:
+#             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+#             for transcript in transcript_list:
+#                 try:
+#                     if transcript.is_translatable:
+#                         for lang in languages:
+#                             try:
+#                                 transcript_data = transcript.translate(lang).fetch()
+#                                 text = ' '.join(entry['text'] for entry in transcript_data)
+#                                 logger.info(f"{lang} 번역 자막 추출 성공")
+#                                 return {'success': True, 'language': lang, 'text': text[:15000]}
+#                             except Exception as e:
+#                                 logger.debug(f"{lang} 번역 자막 추출 실패: {str(e)}")
+#                                 continue
+#                     transcript_data = transcript.fetch()
+#                     text = ' '.join(entry['text'] for entry in transcript_data)
+#                     logger.info(f"{transcript.language_code} 자막 추출 성공")
+#                     return {'success': True, 'language': transcript.language_code, 'text': text[:15000]}
+#                 except Exception as e:
+#                     logger.debug(f"{transcript.language_code} 자막 추출 실패: {str(e)}")
+#                     continue
+#         except Exception as e:
+#             logger.warning(f"youtube_transcript_api 실패: {str(e)}")
         
-        logger.error(f"Video {video_id}: 자막 추출 실패")
-        return {'success': False, 'error': f'Video {video_id}: 사용 가능한 자막이 없습니다'}
+#         logger.error(f"Video {video_id}: 자막 추출 실패")
+#         return {'success': False, 'error': f'Video {video_id}: 사용 가능한 자막이 없습니다'}
     
-    except Exception as e:
-        logger.error(f"youtube_transcript_api 오류: {str(e)}")
-        return {'success': False, 'error': f'Video {video_id}: 자막 추출 오류: {str(e)}'}
+#     except Exception as e:
+#         logger.error(f"youtube_transcript_api 오류: {str(e)}")
+#         return {'success': False, 'error': f'Video {video_id}: 자막 추출 오류: {str(e)}'}
 
 def get_youtube_info_fallback(video_id: str) -> Dict:
     """YouTube 비디오 메타데이터를 가져오는 대체 함수 (requests 사용)"""
@@ -370,35 +371,145 @@ def get_youtube_info_fallback(video_id: str) -> Dict:
         })
         response = session.get(url, timeout=10)
         response.raise_for_status()
+        
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # 제목과 설명 추출
-        title = soup.find('meta', {'name': 'title'})['content'] if soup.find('meta', {'name': 'title'}) else '제목 없음'
-        description = soup.find('meta', {'name': 'description'})['content'] if soup.find('meta', {'name': 'description'}) else '설명 없음'
+        title = None
+        description = None
+        
+        # Try multiple methods to extract title
+        title_tag = soup.find('meta', {'name': 'title'})
+        if title_tag and title_tag.get('content'):
+            title = title_tag['content']
+        else:
+            title_tag = soup.find('meta', {'property': 'og:title'})
+            if title_tag and title_tag.get('content'):
+                title = title_tag['content']
+            else:
+                title_tag = soup.find('title')
+                if title_tag:
+                    title = title_tag.get_text().replace(' - YouTube', '')
+        
+        # Try multiple methods to extract description
+        desc_tag = soup.find('meta', {'name': 'description'})
+        if desc_tag and desc_tag.get('content'):
+            description = desc_tag['content']
+        else:
+            desc_tag = soup.find('meta', {'property': 'og:description'})
+            if desc_tag and desc_tag.get('content'):
+                description = desc_tag['content']
+        
+        # Set defaults if not found
+        title = title or '제목 없음'
+        description = description or '설명 없음'
         
         # 비디오 길이 추출 (대략적)
-        duration_tag = soup.find('meta', {'itemprop': 'duration'})
         duration = 0
-        if duration_tag:
-            duration_str = duration_tag['content']  # 예: PT15M30S
+        try:
+            duration_tag = soup.find('meta', {'itemprop': 'duration'})
+            if duration_tag and duration_tag.get('content'):
+                duration_str = duration_tag['content']  # 예: PT15M30S
+                if 'H' in duration_str:
+                    hours_match = re.search(r'(\d+)H', duration_str)
+                    if hours_match:
+                        duration += int(hours_match.group(1)) * 3600
+                if 'M' in duration_str:
+                    minutes_match = re.search(r'(\d+)M', duration_str)
+                    if minutes_match:
+                        duration += int(minutes_match.group(1)) * 60
+                if 'S' in duration_str:
+                    seconds_match = re.search(r'(\d+)S', duration_str)
+                    if seconds_match:
+                        duration += int(seconds_match.group(1))
+        except Exception as duration_error:
+            logger.warning(f"Duration extraction failed: {duration_error}")
             duration = 0
-            if 'H' in duration_str:
-                hours = int(re.search(r'(\d+)H', duration_str).group(1))
-                duration += hours * 3600
-            if 'M' in duration_str:
-                minutes = int(re.search(r'(\d+)M', duration_str).group(1))
-                duration += minutes * 60
-            if 'S' in duration_str:
-                seconds = int(re.search(r'(\d+)S', duration_str).group(1))
-                duration += seconds
         
+        logger.info(f"Successfully extracted video info - Title: {title[:50]}...")
         return {
             'success': True,
             'title': title,
             'description': description,
             'duration': duration
         }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"HTTP 요청 오류: {str(e)}")
+        return {'success': False, 'error': f'HTTP 요청 실패: {str(e)}'}
     except Exception as e:
         logger.error(f"대체 정보 추출 오류: {str(e)}")
         return {'success': False, 'error': f'대체 정보 추출 실패: {str(e)}'}
+
+def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -> Dict:
+    """유튜브 비디오의 자막을 가져옵니다."""
+    logger.info(f"비디오 ID: {video_id} 자막 추출 시작")
+    
+    # Return early if video_id is None or empty
+    if not video_id:
+        logger.error("Video ID is None or empty")
+        return {'success': False, 'error': 'Invalid video ID'}
+    
+    try:
+        # youtube_transcript_api용 세션 설정
+        session = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        session.headers.update({
+            'Accept-Language': 'ko-KR,ko;q=0.9',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36'
+        })
+        session.timeout = 15
+        YouTubeTranscriptApi._http_client = session
+        
+        logger.debug("youtube_transcript_api 시도")
+        # 지정된 언어로 시도
+        for lang in languages:
+            try:
+                transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
+                if transcript_data:
+                    text = ' '.join(entry.get('text', '') for entry in transcript_data if entry.get('text'))
+                    if text.strip():  # Check if we actually got text
+                        logger.info(f"{lang} 자막 추출 성공")
+                        return {'success': True, 'language': lang, 'text': text[:15000]}
+            except Exception as e:
+                logger.debug(f"{lang} 자막 추출 실패: {str(e)}")
+                continue
+        
+        # 사용 가능한 언어 및 번역 자막 시도
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            for transcript in transcript_list:
+                try:
+                    if transcript.is_translatable:
+                        for lang in languages:
+                            try:
+                                transcript_data = transcript.translate(lang).fetch()
+                                if transcript_data:
+                                    text = ' '.join(entry.get('text', '') for entry in transcript_data if entry.get('text'))
+                                    if text.strip():
+                                        logger.info(f"{lang} 번역 자막 추출 성공")
+                                        return {'success': True, 'language': lang, 'text': text[:15000]}
+                            except Exception as e:
+                                logger.debug(f"{lang} 번역 자막 추출 실패: {str(e)}")
+                                continue
+                    
+                    # Try original language
+                    transcript_data = transcript.fetch()
+                    if transcript_data:
+                        text = ' '.join(entry.get('text', '') for entry in transcript_data if entry.get('text'))
+                        if text.strip():
+                            logger.info(f"{transcript.language_code} 자막 추출 성공")
+                            return {'success': True, 'language': transcript.language_code, 'text': text[:15000]}
+                except Exception as e:
+                    logger.debug(f"{transcript.language_code} 자막 추출 실패: {str(e)}")
+                    continue
+        except Exception as e:
+            logger.warning(f"transcript_list 가져오기 실패: {str(e)}")
+        
+        logger.error(f"Video {video_id}: 자막 추출 실패")
+        return {'success': False, 'error': f'Video {video_id}: 사용 가능한 자막이 없습니다'}
+    
+    except Exception as e:
+        logger.error(f"youtube_transcript_api 오류: {str(e)}")
+        return {'success': False, 'error': f'Video {video_id}: 자막 추출 오류: {str(e)}'}

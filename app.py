@@ -2033,25 +2033,42 @@ def show_chat_dashboard():
                             if 'transcript_result' not in st.session_state or st.session_state.get('video_id') != video_id:
                                 st.session_state.transcript_result = get_youtube_transcript(video_id)
                                 st.session_state.video_id = video_id
+                            
                             transcript_result = st.session_state.transcript_result
-                            if transcript_result['success']:
+                            
+                            # Check if transcript_result is valid
+                            if not transcript_result or not isinstance(transcript_result, dict):
+                                response = "⚠️ 유튜브 자막 데이터를 가져올 수 없습니다."
+                            elif transcript_result.get('success', False):
                                 # 자막 있으면 Gemini로 요약
-                                summary = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
-                                response = (
-                                    f"📹 비디오 ID: {video_id}\n"
-                                    f"📝 원본 길이: {len(transcript_result['text'])} 문자\n"
-                                    f"📄 요약 길이: {len(summary)} 문자\n\n"
-                                    f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}\n\n"
-                                    f"📜 원본 자막 (처음 500자):\n{'-' * 50}\n"
-                                    f"{transcript_result['text'][:500] + '...' if len(transcript_result['text']) > 500 else transcript_result['text']}\n{'-' * 50}"
-                                )
+                                try:
+                                    summary = summarize_youtube_with_gemini(youtube_url, transcript_result['text'], model, detected_lang)
+                                    response = (
+                                        f"📹 비디오 ID: {video_id}\n"
+                                        f"📝 원본 길이: {len(transcript_result['text'])} 문자\n"
+                                        f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                        f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}\n\n"
+                                        f"📜 원본 자막 (처음 500자):\n{'-' * 50}\n"
+                                        f"{transcript_result['text'][:500] + '...' if len(transcript_result['text']) > 500 else transcript_result['text']}\n{'-' * 50}"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Gemini 요약 오류: {str(e)}")
+                                    response = f"❌ 자막 요약 중 오류가 발생했습니다: {str(e)}"
                             else:
-                                logger.warning(f"No subtitles found: {transcript_result['error']}, falling back to metadata")
+                                # 자막이 없으면 메타데이터로 폴백
+                                logger.warning(f"No subtitles found: {transcript_result.get('error', 'Unknown error')}, falling back to metadata")
+                                
+                                # 폴백 정보 캐싱
                                 if 'fallback_info' not in st.session_state or st.session_state.get('video_id') != video_id:
                                     st.session_state.fallback_info = get_youtube_info_fallback(video_id)
+                                
                                 fallback_info = st.session_state.fallback_info
-                                if fallback_info['success']:
-                                    fallback_text = f"제목: {fallback_info['title']}\n설명: {fallback_info['description']}"
+                                
+                                # Check if fallback_info is valid
+                                if not fallback_info or not isinstance(fallback_info, dict):
+                                    response = "⚠️ 유튜브 비디오 정보를 가져올 수 없습니다."
+                                elif fallback_info.get('success', False):
+                                    fallback_text = f"제목: {fallback_info.get('title', '제목 없음')}\n설명: {fallback_info.get('description', '설명 없음')}"
                                     try:
                                         # 메타데이터 Gemini 요약
                                         summary = summarize_youtube_with_gemini(youtube_url, fallback_text, model, detected_lang)
@@ -2063,18 +2080,25 @@ def show_chat_dashboard():
                                         )
                                     except Exception as e:
                                         logger.error(f"Gemini 요약 오류: {str(e)}, create_summary로 최종 폴백")
-                                        summary = create_summary(fallback_text, 400)
-                                        response = (
-                                            f"📹 비디오 ID: {video_id}\n"
-                                            f"📝 원본 길이: {len(fallback_text)} 문자\n"
-                                            f"📄 요약 길이: {len(summary)} 문자\n\n"
-                                            f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
-                                        )
+                                        try:
+                                            summary = create_summary(fallback_text, 400)
+                                            response = (
+                                                f"📹 비디오 ID: {video_id}\n"
+                                                f"📝 원본 길이: {len(fallback_text)} 문자\n"
+                                                f"📄 요약 길이: {len(summary)} 문자\n\n"
+                                                f"📋 요약 내용:\n{'-' * 50}\n{summary}\n{'-' * 50}"
+                                            )
+                                        except Exception as summary_error:
+                                            logger.error(f"create_summary 오류: {str(summary_error)}")
+                                            response = f"❌ 비디오 요약을 생성할 수 없습니다: {str(summary_error)}"
                                 else:
-                                    response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {transcript_result['error']}"
+                                    error_msg = fallback_info.get('error', 'Unknown error') if fallback_info else 'Failed to get video info'
+                                    response = f"⚠️ 자막과 비디오 정보를 가져올 수 없습니다: {error_msg}"
+                                    
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
+                        
                 elif is_webpage_request:
                     status.update(label="🌐 웹페이지 내용을 가져오는 중...")
                     response = summarize_webpage_with_gemini(webpage_url, user_input, model, detected_lang)
@@ -2114,6 +2138,7 @@ def show_chat_dashboard():
             st.session_state.uploaded_images = []
             save_current_session()
             st.rerun()
+
 
     st.markdown("""
     <div class="footer">
