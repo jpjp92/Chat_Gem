@@ -505,6 +505,7 @@ def fetch_webpage_content(url: str) -> str:
         session = requests.Session()
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
+        session.headers.update({'Accept-Language': 'ko-KR,ko;q=0.9'})
         response = session.get(url, timeout=10)
         response.raise_for_status()
         from bs4 import BeautifulSoup
@@ -564,6 +565,7 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     session.mount('https://', HTTPAdapter(max_retries=retries))
+    session.headers.update({'Accept-Language': 'ko-KR,ko;q=0.9'})
     session.timeout = 15
     YouTubeTranscriptApi._http_client = session
     
@@ -619,15 +621,23 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
                 'skip_download': True,
                 'writesubtitles': True,
                 'writeautomaticsub': True,
-                'subtitleslangs': ['ko', 'en', 'ko-orig'],  # 번역 및 원본 자막 포함
+                'subtitleslangs': ['ko', 'en', 'ko-orig', 'all'],  # 모든 언어 포함
                 'subtitlesformat': 'srt',  # srt 우선
-                'noimpersonate': True,     # 클라이언트 위장 비활성화
-                'http_timeout': 15,        # 타임아웃 15초
-                'format': 'best',          # ffmpeg 경고 방지
-                'outtmpl': 'subtitles.%(lang)s.%(ext)s',  # 언어별 파일명
-                'verbose': True,           # 디버깅 로그 활성화
-                'geo_bypass': True,        # 지역 제한 우회
+                'noimpersonate': True,
+                'http_timeout': 15,
+                'format': 'best',
+                'outtmpl': 'subtitles.%(lang)s.%(ext)s',
+                'verbose': True,
+                'geo_bypass': True,
+                # 번역 자막 요청
+                'postprocessors': [{
+                    'key': 'FFmpegSubtitlesConvertor',
+                    'format': 'srt',
+                    'tlang': 'ko',  # 한국어 번역 자막 우선
+                }],
             }
+            # 인증 쿠키 추가 (필요 시)
+            # ydl_opts['cookiefile'] = 'cookies.txt'
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
                 subtitles = extract_subtitles(info)
@@ -647,7 +657,7 @@ def get_youtube_transcript(video_id: str, languages: List[str] = ['ko', 'en']) -
         except Exception as e:
             logger.error(f"Video {video_id}: yt-dlp 자막 추출 오류 (시도 {attempt + 1}/3): {str(e)}")
             if 'HTTP Error 429' in str(e) or 'LOGIN_REQUIRED' in str(e):
-                time.sleep(2 ** attempt)  # 지수 백오프
+                time.sleep(2 ** attempt)
                 continue
             return {'success': False, 'error': f'Video {video_id}: yt-dlp 오류: {str(e)}'}
     logger.error(f"Video {video_id}: yt-dlp 자막 추출 최대 재시도 초과")
