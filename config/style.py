@@ -168,5 +168,33 @@ GEMINI_CUSTOM_CSS = """
             animation: none;
         }
     }
+    
+    .stMarkdown h1 {
+    font-size: 1.75rem !important; /* 약 28px */
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    }
+    .stMarkdown h2 {
+        font-size: 1.25rem !important; /* 약 20px */
+        font-weight: 500;
+        margin-bottom: 0.4rem;
+    }
+    .stMarkdown h3 {
+        font-size: 1.1rem !important; /* 약 17.6px */
+        font-weight: 500;
+        margin-bottom: 0.3rem;
+    }
+    .stMarkdown p {
+        font-size: 1rem !important; /* 약 16px */
+        line-height: 1.6;
+    }
+    .stMarkdown strong {
+        font-size: 1rem !important; /* 약 16px */
+        font-weight: 700;
+    }
+    .stMarkdown > div > div {
+        font-size: 1rem !important; /* 약 16px */
+        line-height: 1.6;
+    }
 </style>
 """
