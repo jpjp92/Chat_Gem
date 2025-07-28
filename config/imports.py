@@ -33,6 +33,7 @@ import requests
 from bs4 import BeautifulSoup
 # from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
+from urllib3.util.retry import Retry
 from pypdf import PdfReader
 from PIL import Image
 
