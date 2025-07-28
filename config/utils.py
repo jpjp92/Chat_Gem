@@ -59,9 +59,9 @@ def is_url_summarization_request(text: str) -> tuple[bool, Optional[str]]:
         return True, urls[0]
     return False, None
 
-def is_pdf_url(url: str) -> bool:
+def is_pdf_url(url):
     """PDF URL인지 확인"""
-    return url.lower().endswith('.pdf')
+    return url.lower().endswith('.pdf') or '/pdf/' in url
 
 def is_pdf_summarization_request(text: str) -> tuple[bool, Optional[str]]:
     """PDF 요약 요청인지 확인하고 URL 추출"""
