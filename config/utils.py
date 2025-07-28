@@ -95,21 +95,23 @@ def fetch_webpage_content(url: str) -> str:
 def fetch_pdf_text(url: str) -> tuple[str, Dict, Optional[Dict]]:
     """PDF 내용 가져오기"""
     try:
-        import pdfplumber
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        with open('temp.pdf', 'wb') as f:
-            f.write(response.content)
-        with pdfplumber.open('temp.pdf') as pdf:
-            text = ' '.join(page.extract_text() or '' for page in pdf.pages)
-            metadata = pdf.metadata
-            sections = None
-        if os.path.exists('temp.pdf'):
-            os.remove('temp.pdf')
+        pdf_file = io.BytesIO(response.content)
+        reader = PdfReader(pdf_file)
+        text = ""
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            text += page_text + " "
+        metadata = reader.metadata or {}
+        sections = None
         return text[:15000], metadata, sections
+    except requests.exceptions.RequestException as e:
+        logger.error(f"PDF 다운로드 실패: {str(e)}")
+        return f"❌ PDF 다운로드 중 오류: {str(e)}", {}, None
     except Exception as e:
-        logger.error(f"PDF 내용 가져오기 오류: {str(e)}")
-        return f"❌ PDF 내용을 가져오는 중 오류가 발생했습니다: {str(e)}", {}, None
+        logger.error(f"PDF 처리 실패: {str(e)}")
+        return f"❌ PDF 처리 중 오류: {str(e)}", {}, None
 
 def analyze_youtube_with_gemini(video_url: str, user_input: str, model, lang: str) -> Dict[str, Any]:
     """Gemini 모델을 사용해 YouTube 비디오를 분석하고 요약합니다."""
@@ -158,3 +160,107 @@ def analyze_youtube_with_gemini(video_url: str, user_input: str, model, lang: st
         "error": error,
         "processing_time": round(processing_time, 2)
     }
+
+# def summarize_pdf_with_gemini(url: str, user_input: str, model, lang: str, chat_history: List[Dict] = None) -> Dict[str, Any]:
+#     """Gemini 모델을 사용해 PDF 문서를 요약합니다."""
+#     start_time = time.time()
+#     logger.info(f"Summarizing PDF: {url}")
+
+#     try:
+#         # PDF 내용 가져오기
+#         content, metadata, _ = fetch_pdf_text(url)
+#         if content.startswith("❌"):
+#             return {
+#                 "pdf_url": url,
+#                 "question": user_input,
+#                 "summary": content,
+#                 "status": "error",
+#                 "error": content,
+#                 "processing_time": round(time.time() - start_time, 2)
+#             }
+
+#         # 메타데이터 정보
+#         metadata_info = {
+#             "title": metadata.get("/Title", "Unknown") if metadata else "Unknown",
+#             "author": metadata.get("/Author", "Unknown") if metadata else "Unknown"
+#         }
+
+#         # 언어별 프롬프트 설정
+#         system_prompt = f"""You are a friendly and helpful AI assistant.
+# Please follow these rules:
+# - Respond only in {'Korean' if lang == 'ko' else 'English'}
+# - Use a friendly and natural tone
+# - Use appropriate emojis
+# - Keep responses concise yet useful"""
+#         prompt = f"""{system_prompt}
+
+# {'다음 PDF 문서의 내용을 한국어로 요약해주세요.' if lang == 'ko' else 'Please summarize the following PDF document in English.'}
+
+# PDF URL: {url}
+# PDF Title: {metadata_info["title"]}
+# User Query: {user_input}
+
+# PDF Content:
+# {content}
+
+# Summary Guidelines:
+# 1. Organize main points into 3-5 key bullets
+# 2. Include important data or contributions
+# 3. Focus on user's specific question if provided
+# 4. Use appropriate emojis for readability
+# 5. Include source URL and title
+# 6. Respond only in {'Korean' if lang == 'ko' else 'English'}
+
+# Format:
+# 📄 **{'PDF 요약' if lang == 'ko' else 'PDF Summary'}**
+
+# 🔗 **{'출처' if lang == 'ko' else 'Source'}**: {url}
+# 📖 **{'제목' if lang == 'ko' else 'Title'}**: {metadata_info["title"]}
+# 📜 **{'저자' if lang == 'ko' else 'Author'}**: {metadata_info["author"]}
+
+# 📝 **{'주요 내용' if lang == 'ko' else 'Key Points'}**:
+# - Point 1
+# - Point 2
+# - ...
+
+# 💡 **{'핵심' if lang == 'ko' else 'Key Insight'}**: Main message or significance
+# """
+
+#         # 멀티턴 대화를 위해 chat_session 사용
+#         chat_session = model.start_chat(history=chat_history or [])
+#         response = chat_session.send_message(prompt)
+
+#         if response.parts:
+#             result_text = response.text
+#             status = "success"
+#             error = None
+#             updated_history = chat_session.history
+#         else:
+#             result_text = None
+#             status = "failed"
+#             finish_reason = response.candidates[0].finish_reason if response.candidates else 'N/A'
+#             error = f"{'응답이 비어있거나 차단되었습니다' if lang == 'ko' else 'Response is empty or blocked'}. Finish Reason: {finish_reason}"
+#             updated_history = chat_session.history
+
+#     except genai.types.BlockedPromptException as e:
+#         result_text = None
+#         status = "blocked"
+#         error = f"{'프롬프트가 안전 설정에 의해 차단되었습니다' if lang == 'ko' else 'Prompt blocked by safety settings'}: {e}"
+#         updated_history = chat_session.history if 'chat_session' in locals() else chat_history
+#     except Exception as e:
+#         result_text = None
+#         status = "error"
+#         error = f"{'요약 중 예기치 않은 오류 발생' if lang == 'ko' else 'Unexpected error during summarization'}: {e}"
+#         updated_history = chat_session.history if 'chat_session' in locals() else chat_history
+
+#     processing_time = time.time() - start_time
+
+#     return {
+#         "pdf_url": url,
+#         "question": user_input,
+#         "summary": result_text,
+#         "status": status,
+#         "error": error,
+#         "processing_time": round(processing_time, 2),
+#         "chat_history": updated_history
+#     }
