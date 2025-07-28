@@ -640,7 +640,7 @@ def show_chat_dashboard():
                             result = analyze_youtube_with_gemini(youtube_url, user_input, model, detected_lang)
                             if result["status"] == "success":
                                 response = (
-                                    f"📹 비디오 URL: <span style='font-size:1rem'>{youtube_url}</span>\n"
+                                    f"📹 비디오 URL: [{youtube_url}]({youtube_url})\n\n"
                                     f"📄 요약 내용:\n{'-' * 50}\n{result['summary']}\n{'-' * 50}\n"
                                     f"⏱️ 처리 시간: {result['processing_time']}초"
                                 )
