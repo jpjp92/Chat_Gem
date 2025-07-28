@@ -640,8 +640,8 @@ def show_chat_dashboard():
                             result = analyze_youtube_with_gemini(youtube_url, user_input, model, detected_lang)
                             if result["status"] == "success":
                                 response = (
-                                    f"📹 비디오 URL: {youtube_url}\n"
-                                    f"📄 요약 내용:\n{'-' * 50}\n{result['summary']}\n{'-' * 50}\n"
+                                    f"📹 비디오 URL: {youtube_url}\n\n"
+                                    f"📄 요약 내용:\n{'-' * 50}\n{result['summary']}\n{'-' * 50}\n\n"
                                     f"⏱️ 처리 시간: {result['processing_time']}초"
                                 )
                             else:
@@ -677,111 +677,7 @@ def show_chat_dashboard():
             save_current_session()
             st.rerun()
             
-    # if user_input:
-    #     save_current_session()
-    #     if not st.session_state.current_session_id:
-    #         create_new_chat_session()
-
-    #     detected_lang = detect_language(user_input)
-    #     if detected_lang != st.session_state.system_language:
-    #         st.session_state.system_language = detected_lang
-    #         system_prompt = get_system_prompt(detected_lang)
-    #         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt, safety_settings=safety_settings)
-    #         st.session_state.chat_history = []
-    #         st.session_state.messages.append({
-    #             "role": "assistant",
-    #             "content": "언어가 변경되었습니다." if detected_lang == "ko" else "Language changed."
-    #         })
-
-    #     if get_usage_count() >= 100:
-    #         st.error("⚠️ 일일 무료 한도를 초과했습니다!")
-    #     else:
-    #         increment_usage()
-    #         image_data = []
-    #         if st.session_state.uploaded_images:
-    #             for img_file in st.session_state.uploaded_images:
-    #                 valid, msg = validate_image_file(img_file)
-    #                 if not valid:
-    #                     st.error(msg)
-    #                     continue
-    #                 img_file.seek(0)
-    #                 image_data.append(img_file.read())
-
-    #         if not st.session_state.messages:
-    #             st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
-            
-    #         st.session_state.messages.append({
-    #             "role": "user",
-    #             "content": user_input,
-    #             "images": image_data
-    #         })
-
-    #         is_youtube_request, youtube_url = is_youtube_summarization_request(user_input)
-    #         is_webpage_request, webpage_url = is_url_summarization_request(user_input)
-    #         is_pdf_request, pdf_url = is_pdf_summarization_request(user_input)
-    #         has_images = len(st.session_state.uploaded_images) > 0
-    #         is_image_analysis = is_image_analysis_request(user_input, has_images)
-
-    #         with st.status("🤖 요청을 처리하는 중...", expanded=True) as status:
-    #             if is_youtube_request:
-    #                 status.update(label="📺 유튜브 비디오 처리 중...")
-    #                 try:
-    #                     video_id = extract_video_id(youtube_url)
-    #                     if not video_id:
-    #                         response = "⚠️ 유효하지 않은 YouTube URL입니다."
-    #                     else:
-    #                         result = analyze_youtube_with_gemini(youtube_url, user_input, model, detected_lang)
-    #                         if result["status"] == "success":
-    #                             response = (
-    #                                 f"📹 비디오 URL: {youtube_url}\n"
-    #                                 f"📄 요약 내용:\n{'-' * 50}\n{result['summary']}\n{'-' * 50}\n"
-    #                                 f"⏱️ 처리 시간: {result['processing_time']}초"
-    #                             )
-    #                         else:
-    #                             response = f"❌ 비디오 요약 실패: {result['error']}"
-    #                 except Exception as e:
-    #                     logger.error(f"유튜브 처리 오류: {str(e)}")
-    #                     response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
-                        
-    #             elif is_webpage_request:
-    #                 status.update(label="🌐 웹페이지 내용을 가져오는 중...")
-    #                 response = summarize_webpage_with_gemini(webpage_url, user_input, model, detected_lang)
-    #             elif is_pdf_request:
-    #                 status.update(label="📄 PDF 내용을 가져오는 중...")
-    #                 if st.session_state.current_pdf_url != pdf_url:
-    #                     st.session_state.current_pdf_url = pdf_url
-    #                     st.session_state.current_pdf_content, st.session_state.current_pdf_metadata, st.session_state.current_pdf_sections = fetch_pdf_text(pdf_url)
-    #                 content, metadata, sections = st.session_state.current_pdf_content, st.session_state.current_pdf_metadata, st.session_state.current_pdf_sections
-    #                 if content.startswith("❌"):
-    #                     response = content
-    #                 else:
-    #                     chat_session = model.start_chat(history=st.session_state.chat_history)
-    #                     response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, pdf_url, sections)
-    #                     st.session_state.chat_history = chat_session.history
-    #             elif is_image_analysis and has_images:
-    #                 status.update(label="📸 이미지를 분석하는 중...")
-    #                 images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
-    #                 if all(img is not None for img in images):
-    #                     chat_session = model.start_chat(history=st.session_state.chat_history)
-    #                     response = analyze_image_with_gemini_multiturn(images, user_input, chat_session, detected_lang)
-    #                     st.session_state.chat_history = chat_session.history
-    #                 else:
-    #                     response = "❌ 이미지 처리 중 오류가 발생했습니다."
-    #             else:
-    #                 status.update(label="💬 응답을 생성하는 중...")
-    #                 chat_session = model.start_chat(history=st.session_state.chat_history)
-    #                 try:
-    #                     response = chat_session.send_message(user_input).text
-    #                     st.session_state.chat_history = chat_session.history
-    #                 except Exception as e:
-    #                     logger.error(f"Google Generative AI 서비스 오류: {e}")
-    #                     response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
-    #             status.update(label="✅ 완료!", state="complete")
-
-    #         st.session_state.messages.append({"role": "assistant", "content": response})
-    #         st.session_state.uploaded_images = []
-    #         save_current_session()
-    #         st.rerun()
+    
 
     st.markdown("""
     <div class="footer">
