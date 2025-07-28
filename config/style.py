@@ -174,16 +174,7 @@ GEMINI_CUSTOM_CSS = """
     font-weight: 600;
     margin-bottom: 0.5rem;
     }
-    .stMarkdown h2 {
-        font-size: 1.25rem !important; /* 약 20px */
-        font-weight: 500;
-        margin-bottom: 0.4rem;
-    }
-    .stMarkdown h3 {
-        font-size: 1.1rem !important; /* 약 17.6px */
-        font-weight: 500;
-        margin-bottom: 0.3rem;
-    }
+   
 
 </style>
 """
