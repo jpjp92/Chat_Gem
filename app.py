@@ -639,9 +639,22 @@ def show_chat_dashboard():
                         else:
                             result = analyze_youtube_with_gemini(youtube_url, user_input, model, detected_lang)
                             if result["status"] == "success":
+                                # 요약 결과에서 헤더 마크다운을 제거하는 함수
+                                import re
+
+                                def clean_markdown_headers(text):
+                                    # ##, ###, ** 등 헤더/볼드 제거
+                                    text = re.sub(r'#+\s*', '', text)  # Remove markdown headers
+                                    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Remove bold
+                                    text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
+                                    return text
+
+                                # 결과 생성
+                                summary_clean = clean_markdown_headers(result['summary'])
+
                                 response = (
                                     f"📹 비디오 URL: [{youtube_url}]({youtube_url})\n\n"
-                                    f"📄 요약 내용:\n{'-' * 50}\n{result['summary']}\n{'-' * 50}\n"
+                                    f"📄 요약 내용:\n\n{'-' * 30}\n{summary_clean}\n{'-' * 30}\n"
                                     f"⏱️ 처리 시간: {result['processing_time']}초"
                                 )
                             else:
