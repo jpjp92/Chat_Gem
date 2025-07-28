@@ -52,12 +52,20 @@ def extract_urls_from_text(text: str) -> List[str]:
     urls = re.findall(url_pattern, text)
     return urls
 
+# def is_url_summarization_request(text: str) -> tuple[bool, Optional[str]]:
+#     """URL 요약 요청인지 확인하고 URL 추출"""
+#     urls = extract_urls_from_text(text)
+#     if urls and not is_youtube_url(urls[0]):
+#         return True, urls[0]
+#     return False, None
+
 def is_url_summarization_request(text: str) -> tuple[bool, Optional[str]]:
-    """URL 요약 요청인지 확인하고 URL 추출"""
+    """URL 요약 요청인지 확인하고 URL 추출 (PDF 및 YouTube URL 제외)"""
     urls = extract_urls_from_text(text)
-    if urls and not is_youtube_url(urls[0]):
+    if urls and not is_youtube_url(urls[0]) and not is_pdf_url(urls[0]):
         return True, urls[0]
     return False, None
+
 
 def is_pdf_url(url):
     """PDF URL인지 확인"""
@@ -92,11 +100,35 @@ def fetch_webpage_content(url: str) -> str:
         logger.error(f"웹페이지 내용 가져오기 오류: {str(e)}")
         return f"❌ 웹페이지 내용을 가져오는 중 오류가 발생했습니다: {str(e)}"
 
+# def fetch_pdf_text(url: str) -> tuple[str, Dict, Optional[Dict]]:
+#     """PDF 내용 가져오기"""
+#     try:
+#         response = requests.get(url, timeout=10)
+#         response.raise_for_status()
+#         pdf_file = io.BytesIO(response.content)
+#         reader = PdfReader(pdf_file)
+#         text = ""
+#         for page in reader.pages:
+#             page_text = page.extract_text() or ""
+#             text += page_text + " "
+#         metadata = reader.metadata or {}
+#         sections = None
+#         return text[:15000], metadata, sections
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f"PDF 다운로드 실패: {str(e)}")
+#         return f"❌ PDF 다운로드 중 오류: {str(e)}", {}, None
+#     except Exception as e:
+#         logger.error(f"PDF 처리 실패: {str(e)}")
+#         return f"❌ PDF 처리 중 오류: {str(e)}", {}, None
+
 def fetch_pdf_text(url: str) -> tuple[str, Dict, Optional[Dict]]:
     """PDF 내용 가져오기"""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
+        if 'application/pdf' not in response.headers.get('Content-Type', '').lower():
+            logger.error(f"URL이 PDF 형식이 아님: {url}")
+            return f"❌ URL은 PDF 파일이 아닙니다: {url}", {}, None
         pdf_file = io.BytesIO(response.content)
         reader = PdfReader(pdf_file)
         text = ""
@@ -105,8 +137,14 @@ def fetch_pdf_text(url: str) -> tuple[str, Dict, Optional[Dict]]:
             text += page_text + " "
         metadata = reader.metadata or {}
         sections = None
+        if not text.strip():
+            logger.warning("PDF에서 텍스트를 추출할 수 없습니다.")
+            return "❌ PDF에서 텍스트를 추출할 수 없습니다.", {}, None
         return text[:15000], metadata, sections
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            logger.error(f"PDF URL을 찾을 수 없음: {url}")
+            return f"❌ PDF URL을 찾을 수 없습니다: {url}", {}, None
         logger.error(f"PDF 다운로드 실패: {str(e)}")
         return f"❌ PDF 다운로드 중 오류: {str(e)}", {}, None
     except Exception as e:
