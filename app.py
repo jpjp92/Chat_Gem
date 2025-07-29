@@ -22,6 +22,7 @@ from config.prompts import (
     analyze_image_with_gemini_multiturn,
     summarize_webpage_with_gemini,
     analyze_pdf_with_gemini_multiturn,
+    summarize_webpage_with_gemini_multiturn,
 )
 
 # Set utility functions for handling various tasks
@@ -35,7 +36,8 @@ from config.utils import (
     is_pdf_summarization_request,
     fetch_webpage_content,
     fetch_pdf_text,
-    analyze_youtube_with_gemini,  # 새로운 유틸리티 함수 추가
+    analyze_youtube_with_gemini,
+    extract_webpage_metadata,
 )
 
 # Logging setup
@@ -99,6 +101,14 @@ def initialize_session_state():
         st.session_state.current_pdf_metadata = None
     if "current_pdf_sections" not in st.session_state:
         st.session_state.current_pdf_sections = None
+        
+    # 웹페이지 캐싱
+    if "current_webpage_url" not in st.session_state:
+        st.session_state.current_webpage_url = None
+    if "current_webpage_content" not in st.session_state:
+        st.session_state.current_webpage_content = None
+    if "current_webpage_metadata" not in st.session_state:
+        st.session_state.current_webpage_metadata = None
 
     # 로그인 상태인데 현재 세션이 없으면 새 세션 생성/로드
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
@@ -108,6 +118,17 @@ def initialize_session_state():
         else:
             create_new_chat_session()
             save_current_session()
+
+def clear_cached_content():
+    """캐시된 콘텐츠 정리"""
+    st.session_state.current_pdf_url = None
+    st.session_state.current_pdf_content = None
+    st.session_state.current_pdf_metadata = None
+    st.session_state.current_pdf_sections = None
+    st.session_state.current_webpage_url = None
+    st.session_state.current_webpage_content = None
+    st.session_state.current_webpage_metadata = None
+
 
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
@@ -197,6 +218,10 @@ def create_new_chat_session():
     st.session_state.messages = []
     st.session_state.chat_history = []
     st.session_state.uploaded_images = []
+    
+    # 캐시된 콘텐츠 정리
+    clear_cached_content()
+    
     return session_id
 
 def save_current_session():
@@ -662,9 +687,32 @@ def show_chat_dashboard():
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
+                # elif is_webpage_request:
+                #     status.update(label="🌐 웹페이지 내용을 가져오는 중...")
+                #     response = summarize_webpage_with_gemini(webpage_url, user_input, model, detected_lang)
+                
                 elif is_webpage_request:
                     status.update(label="🌐 웹페이지 내용을 가져오는 중...")
-                    response = summarize_webpage_with_gemini(webpage_url, user_input, model, detected_lang)
+                    # 웹페이지 캐싱 로직 추가
+                    if st.session_state.current_webpage_url != webpage_url:
+                        st.session_state.current_webpage_url = webpage_url
+                        content = fetch_webpage_content(webpage_url)
+                        st.session_state.current_webpage_content = content
+                        # 메타데이터 추출
+                        st.session_state.current_webpage_metadata = extract_webpage_metadata(webpage_url, content)
+                    
+                    content = st.session_state.current_webpage_content
+                    metadata = st.session_state.current_webpage_metadata
+                    
+                    if content.startswith("❌"):
+                        response = content
+                    else:
+                        chat_session = model.start_chat(history=st.session_state.chat_history)
+                        response = summarize_webpage_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, webpage_url)
+                        st.session_state.chat_history = chat_session.history
+                
+                    
+                    
                 elif is_image_analysis and has_images:
                     status.update(label="📸 이미지를 분석하는 중...")
                     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
@@ -689,9 +737,7 @@ def show_chat_dashboard():
             st.session_state.uploaded_images = []
             save_current_session()
             st.rerun()
-            
-    
-
+    # Footer
     st.markdown("""
     <div class="footer">
         <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem;">
