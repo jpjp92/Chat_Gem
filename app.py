@@ -1284,7 +1284,7 @@ def show_chat_dashboard():
                 if st.button("🧹 전체삭제", key="clear_all", help="모든 대화 기록을 삭제합니다", use_container_width=True):
                     if st.session_state.chat_sessions:
                         st.markdown("---")
-Ww                        confirm = st.checkbox("⚠️ 정말 모든 대화를 삭제하시겠습니까?", key="confirm_delete_checkbox")
+                        confirm = st.checkbox("⚠️ 정말 모든 대화를 삭제하시겠습니까?", key="confirm_delete_checkbox")
                         if confirm:
                             col_yes, col_no = st.columns(2)
                             with col_yes:
