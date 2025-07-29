@@ -542,7 +542,7 @@ def show_chat_dashboard():
                 st.session_state.example_input = "https://arxiv.org/pdf/2410.04064 요약해줘"
         with col4:
             if st.button("🖼️ 이미지 분석", key="example_image", help="이미지 분석 기능을 시험해보세요", use_container_width=True):
-                st.session_state.example_input = "첨부한 이미지를 분석해줘"
+                st.session_state.example_input = "이미지 분석해줘"
         with col5:
             if st.button("💬 일상 대화", key="example_chat", help="일상 대화 기능을 시험해보세요", use_container_width=True):
                 st.session_state.example_input = "스페인어 공부하자! 기본회화 알려줘"
