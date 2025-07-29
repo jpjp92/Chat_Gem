@@ -14,7 +14,7 @@ from config.utils import (
     is_pdf_url,
     is_pdf_summarization_request,
     fetch_pdf_text,
-    analyze_youtube_with_gemini,  # 새로운 함수 추가
+    analyze_youtube_with_gemini,  
 )
 
 # Set logging configuration
@@ -206,6 +206,140 @@ Format:
     except Exception as e:
         logger.error(f"웹페이지 요약 중 오류: {str(e)}")
         return f"❌ 웹페이지 요약 중 오류가 발생했습니다: {str(e)}"
+
+def summarize_webpage_with_gemini_multiturn(webpage_content, metadata, user_query, chat_session, detected_lang="ko", webpage_url=""):
+    """웹페이지 내용을 기존 채팅 세션에 연결하여 멀티턴 대화로 분석 또는 요약"""
+    try:
+        system_prompt = get_system_prompt(detected_lang)
+        
+        # 요약 요청인지 확인
+        is_summary_request = any(keyword in user_query.lower() for keyword in ['요약', '정리', 'summary', 'summarize']) and ("http" in user_query or "www" in user_query)
+        
+        # 사용자 지정 포인트 개수 파싱
+        point_count = 5  # 기본값
+        if is_summary_request:
+            if match := re.search(r'(\d+)개\s*(포인트|항목)', user_query, re.IGNORECASE):
+                point_count = min(int(match.group(1)), 8)  # 최대 8개로 제한
+        
+        # 관련 내용 선택 (키워드 기반)
+        relevant_content = webpage_content[:12000]  # 기본 길이
+        
+        # 프롬프트 구성
+        if detected_lang == "ko":
+            if is_summary_request:
+                prompt = f"""{system_prompt}
+
+다음 웹페이지의 내용을 한국어로 요약해주세요.
+
+웹페이지 URL: {webpage_url}
+제목: {metadata.get("title", "Unknown")}
+사이트: {metadata.get("site_name", "Unknown")}
+설명: {metadata.get("description", "No description")}
+
+웹페이지 내용: {relevant_content}
+
+사용자 질문: {user_query}
+
+요약 지침:
+1. 주요 내용을 {point_count}개 포인트로 정리
+2. 중요한 데이터나 핵심 정보를 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 요약
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요
+
+형식:
+🌐 **웹페이지 요약**
+
+🔗 **출처**: [{metadata.get("site_name", "Unknown")}]({webpage_url})
+📰 **제목**: {metadata.get("title", "Unknown")}
+
+📝 **주요 내용**:
+- 포인트 1
+- 포인트 2
+- ...
+
+💡 **핵심**: 주요 메시지나 결론"""
+            else:
+                prompt = f"""{system_prompt}
+
+다음 웹페이지의 내용을 바탕으로 사용자 질문에 답변해주세요.
+
+제목: {metadata.get("title", "Unknown")}
+사이트: {metadata.get("site_name", "Unknown")}
+웹페이지 내용: {relevant_content}
+
+사용자 질문: {user_query}
+
+지침:
+1. 웹페이지 내용을 기반으로 사용자의 질문에 답변
+2. 주요 데이터나 핵심 내용을 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 답변
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요"""
+        else:
+            if is_summary_request:
+                prompt = f"""{system_prompt}
+
+Please summarize the following webpage content in English.
+
+Webpage URL: {webpage_url}
+Title: {metadata.get("title", "Unknown")}
+Site: {metadata.get("site_name", "Unknown")}
+Description: {metadata.get("description", "No description")}
+
+Webpage Content: {relevant_content}
+
+User Query: {user_query}
+
+Summary Guidelines:
+1. Organize main points into {point_count} key bullets
+2. Include important data or key information
+3. Focus on user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English
+
+Format:
+🌐 **Webpage Summary**
+
+🔗 **Source**: [{metadata.get("site_name", "Unknown")}]({webpage_url})
+📰 **Title**: {metadata.get("title", "Unknown")}
+
+📝 **Key Points**:
+- Point 1
+- Point 2
+- ...
+
+💡 **Key Insight**: Main message or conclusion"""
+            else:
+                prompt = f"""{system_prompt}
+
+Please respond to the user's query based on the following webpage content.
+
+Title: {metadata.get("title", "Unknown")}
+Site: {metadata.get("site_name", "Unknown")}
+Webpage Content: {relevant_content}
+
+User Query: {user_query}
+
+Guidelines:
+1. Answer based on the webpage content
+2. Include key data or main points
+3. Address the user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English"""
+        
+        response = chat_session.send_message(prompt)
+        return response.text
+    except Exception as e:
+        logger.error(f"웹페이지 분석 오류: {e}")
+        if "too large" in str(e).lower():
+            error_msg = "웹페이지 내용이 너무 길어 처리할 수 없습니다." if detected_lang == "ko" else "Webpage content is too large to process."
+        elif "invalid" in str(e).lower():
+            error_msg = "잘못된 웹페이지 형식입니다." if detected_lang == "ko" else "Invalid webpage format."
+        else:
+            error_msg = "웹페이지 분석 중 오류가 발생했습니다." if detected_lang == "ko" else "An error occurred during webpage analysis."
+        return error_msg
+
 
 def analyze_pdf_with_gemini_multiturn(pdf_content, metadata, user_query, chat_session, detected_lang="ko", pdf_url="", sections=None):
     """PDF 내용을 기존 채팅 세션에 연결하여 멀티턴 대화로 분석 또는 요약"""
