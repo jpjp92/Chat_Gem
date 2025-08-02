@@ -1,29 +1,38 @@
-# # app.py: Streamlit App for Gemini AI Interactions
+# app.py: Streamlit App for Gemini AI Interactions
 
-# import sys
-# import os
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# # Set library imports
-# from config.imports import *
+# Set library imports
+from config.imports import *
 
-# # Set environment variables
-# from config.env import GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY
+# Set environment variables
+from config.env import GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY
 
-# # Set custom CSS for styling
-# from config.style import GEMINI_CUSTOM_CSS
+# Set custom CSS for styling
+from config.style import GEMINI_CUSTOM_CSS
 
-# # Set CSS for login page
-# from config.logincss import TRENDY_LOGIN_CSS
+# Set CSS for login page
+from config.logincss import TRENDY_LOGIN_CSS
 
-# # Set prompts and functions for Gemini interactions
-# from config.prompts import (
-#     get_system_prompt,
-#     analyze_image_with_gemini_multiturn,
-#     summarize_webpage_with_gemini,
-#     analyze_pdf_with_gemini_multiturn,
-#     summarize_webpage_with_gemini_multiturn,
-# )
+# Set prompts and functions for Gemini interactions
+from config.prompts import (
+    get_system_prompt,
+    analyze_image_with_gemini_multiturn,
+    summarize_webpage_with_gemini,
+    analyze_pdf_with_gemini_multiturn,
+    summarize_webpage_with_gemini_multiturn,
+)
+
+# Set storage utilities for Supabase
+from config.storage_utils import (
+    upload_image_to_supabase,
+    upload_pdf_to_supabase,
+    save_chat_history_to_supabase,
+    load_chat_history_from_supabase,
+    get_chat_sessions_from_supabase,
+)
 
 # # Set utility functions for handling various tasks
 # from config.utils import (
@@ -110,14 +119,32 @@
 #     if "current_webpage_metadata" not in st.session_state:
 #         st.session_state.current_webpage_metadata = None
 
-#     # 로그인 상태인데 현재 세션이 없으면 새 세션 생성/로드
-#     if st.session_state.is_logged_in and not st.session_state.current_session_id:
-#         if st.session_state.chat_sessions:
-#             st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
-#             load_session(st.session_state.chat_sessions[0]["id"])
-#         else:
-#             create_new_chat_session()
-#             save_current_session()
+    # 로그인 상태인데 현재 세션이 없으면 세션 목록 로드 후 첫 세션 열기
+    if st.session_state.is_logged_in and not st.session_state.current_session_id:
+        # Supabase에서 사용자의 세션 목록 가져오기
+        if st.session_state.user_id:
+            try:
+                # Supabase에서 세션 목록 로드
+                supabase_sessions = get_chat_sessions_from_supabase(supabase, st.session_state.user_id)
+                
+                if supabase_sessions:
+                    # 로컬 세션 목록에 추가 (기존에 없는 세션만)
+                    existing_session_ids = {s["id"] for s in st.session_state.chat_sessions}
+                    for session in supabase_sessions:
+                        if session["id"] not in existing_session_ids:
+                            st.session_state.chat_sessions.append(session)
+                    
+                    logger.info(f"Supabase에서 {len(supabase_sessions)}개 세션 로드")
+            except Exception as e:
+                logger.error(f"세션 목록 로드 오류: {str(e)}")
+        
+        # 세션이 있으면 첫 세션 로드, 없으면 새 세션 생성
+        if st.session_state.chat_sessions:
+            st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
+            load_session(st.session_state.chat_sessions[0]["id"])
+        else:
+            create_new_chat_session()
+            save_current_session()
 
 # def clear_cached_content():
 #     """캐시된 콘텐츠 정리"""
@@ -880,8 +907,26 @@ def initialize_session_state():
     if "current_webpage_metadata" not in st.session_state:
         st.session_state.current_webpage_metadata = None
 
-    # 로그인 상태인데 현재 세션이 없으면 새 세션 생성/로드
+    # 로그인 상태인데 현재 세션이 없으면 세션 목록 로드 후 첫 세션 열기
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
+        # Supabase에서 사용자의 세션 목록 가져오기
+        if st.session_state.user_id:
+            try:
+                # Supabase에서 세션 목록 로드
+                supabase_sessions = get_chat_sessions_from_supabase(supabase, st.session_state.user_id)
+                
+                if supabase_sessions:
+                    # 로컬 세션 목록에 추가 (기존에 없는 세션만)
+                    existing_session_ids = {s["id"] for s in st.session_state.chat_sessions}
+                    for session in supabase_sessions:
+                        if session["id"] not in existing_session_ids:
+                            st.session_state.chat_sessions.append(session)
+                    
+                    logger.info(f"Supabase에서 {len(supabase_sessions)}개 세션 로드")
+            except Exception as e:
+                logger.error(f"세션 목록 로드 오류: {str(e)}")
+        
+        # 세션이 있으면 첫 세션 로드, 없으면 새 세션 생성
         if st.session_state.chat_sessions:
             st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
             load_session(st.session_state.chat_sessions[0]["id"])
@@ -993,11 +1038,19 @@ def create_new_chat_session():
     # 캐시된 콘텐츠 정리
     clear_cached_content()
     
+    # Supabase에 빈 세션 정보 저장 (첫 메시지가 입력될 때 실제 저장됨)
+    if st.session_state.is_logged_in and st.session_state.user_id:
+        try:
+            logger.info(f"새 채팅 세션 생성: {session_id}")
+        except Exception as e:
+            logger.error(f"세션 생성 오류: {str(e)}")
+    
     return session_id
 
 def save_current_session():
     """현재 세션 저장"""
     if st.session_state.current_session_id:
+        # 로컬 세션 데이터 업데이트
         for session in st.session_state.chat_sessions:
             if session["id"] == st.session_state.current_session_id:
                 session["messages"] = st.session_state.messages.copy()
@@ -1010,22 +1063,147 @@ def save_current_session():
                     elif session["title"].startswith("새 대화"):
                         pass 
                 break
+                
+        # Supabase에 채팅 이력 저장 (이미지 업로드 및 URL 변환 처리)
+        if st.session_state.is_logged_in and st.session_state.user_id and st.session_state.messages:
+            try:
+                # 메시지 복사본 생성 (이미지 URL 변환을 위해)
+                messages_to_save = []
+                for msg in st.session_state.messages:
+                    msg_copy = msg.copy()
+                    
+                    # 이미지가 있는 메시지인 경우 처리
+                    if "images" in msg and msg["images"]:
+                        # 이미 image_urls가 있으면 그것을 사용
+                        if "image_urls" in msg and msg["image_urls"]:
+                            msg_copy["images"] = msg["image_urls"]
+                        # 그렇지 않으면 이미지 데이터를 URL로 변환
+                        else:
+                            # 이미지 데이터를 URL로 변환
+                            image_urls = []
+                            for img_data in msg["images"]:
+                                # 이미 URL 문자열인 경우 그대로 사용
+                                if isinstance(img_data, str):
+                                    image_urls.append(img_data)
+                                # 이진 데이터인 경우 업로드 처리
+                                else:
+                                    # 임시 파일로 저장 후 업로드
+                                    try:
+                                        from tempfile import NamedTemporaryFile
+                                        with NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+                                            tmp.write(img_data)
+                                            tmp_path = tmp.name
+                                            
+                                        # 임시 파일로부터 업로드
+                                        from streamlit.runtime.uploaded_file_manager import UploadedFile
+                                        temp_file = UploadedFile(
+                                            name=f"image_{uuid.uuid4()}.jpg",
+                                            type="image/jpeg",
+                                            size=len(img_data),
+                                            file=open(tmp_path, "rb")
+                                        )
+                                        
+                                        # Supabase에 업로드
+                                        image_url = upload_image_to_supabase(temp_file, supabase)
+                                        if image_url:
+                                            image_urls.append(image_url)
+                                            
+                                        # 임시 파일 정리
+                                        temp_file.file.close()
+                                        os.unlink(tmp_path)
+                                    except Exception as e:
+                                        logger.error(f"이미지 업로드 중 오류: {str(e)}")
+                                        continue
+                            
+                            # 메시지 복사본의 이미지 데이터를 URL로 대체
+                            msg_copy["images"] = image_urls
+                    
+                    messages_to_save.append(msg_copy)
+                
+                # Supabase에 채팅 이력 저장
+                save_chat_history_to_supabase(
+                    supabase,
+                    st.session_state.user_id,
+                    st.session_state.current_session_id,
+                    messages_to_save
+                )
+                
+                logger.info(f"채팅 이력 저장 완료: 세션 ID {st.session_state.current_session_id}")
+            except Exception as e:
+                logger.error(f"채팅 이력 저장 오류: {str(e)}")
 
 def load_session(session_id):
     """세션 로드"""
     save_current_session()
+    
+    # 로컬 세션 먼저 확인
+    local_session_found = False
     for session in st.session_state.chat_sessions:
         if session["id"] == session_id:
             st.session_state.current_session_id = session_id
             st.session_state.messages = session["messages"].copy()
             st.session_state.chat_history = session["chat_history"].copy()
-            st.session_state.uploaded_images = []
-            st.session_state.uploaded_pdf_file = None
+            local_session_found = True
             break
+            
+    # Supabase에서 세션 로드 (로그인된 사용자인 경우)
+    if st.session_state.is_logged_in and st.session_state.user_id:
+        try:
+            # Supabase에서 채팅 이력 로드
+            messages = load_chat_history_from_supabase(supabase, session_id)
+            
+            if messages:
+                # 로컬 세션이 없는 경우 새로 생성
+                if not local_session_found:
+                    # 세션 제목 결정
+                    first_user_message = next((msg["content"] for msg in messages if msg["role"] == "user"), "")
+                    session_title = first_user_message[:30] + "..." if len(first_user_message) > 30 else first_user_message
+                    if not session_title:
+                        session_title = f"대화 {len(st.session_state.chat_sessions) + 1}"
+                    
+                    # 새 세션 생성
+                    new_session = {
+                        "id": session_id,
+                        "title": session_title,
+                        "messages": messages,
+                        "chat_history": [],  # Gemini 채팅 이력은 따로 관리
+                        "created_at": datetime.now(),
+                        "last_updated": datetime.now()
+                    }
+                    st.session_state.chat_sessions.append(new_session)
+                    st.session_state.current_session_id = session_id
+                    st.session_state.messages = messages
+                    st.session_state.chat_history = []
+                else:
+                    # 이미 로컬에 세션이 있더라도 Supabase 데이터로 덮어쓰기
+                    st.session_state.messages = messages
+                
+                logger.info(f"Supabase에서 세션 로드 완료: {session_id}")
+        except Exception as e:
+            logger.error(f"세션 로드 오류: {str(e)}")
+    
+    # 이미지와 PDF 파일 초기화
+    st.session_state.uploaded_images = []
+    st.session_state.uploaded_pdf_file = None
+    
+    # 캐시된 콘텐츠 정리
+    clear_cached_content()
 
 def delete_session(session_id):
     """세션 삭제"""
+    # 로컬 세션 목록에서 삭제
     st.session_state.chat_sessions = [s for s in st.session_state.chat_sessions if s["id"] != session_id]
+    
+    # Supabase에서 세션 삭제
+    if st.session_state.is_logged_in and st.session_state.user_id:
+        try:
+            # 채팅 이력 삭제
+            supabase.table("chat_history").delete().eq("session_id", session_id).execute()
+            logger.info(f"세션 삭제 완료: {session_id}")
+        except Exception as e:
+            logger.error(f"세션 삭제 오류: {str(e)}")
+    
+    # 현재 세션이 삭제된 세션이면 다른 세션 로드 또는 새 세션 생성
     if st.session_state.current_session_id == session_id:
         if st.session_state.chat_sessions:
             load_session(st.session_state.chat_sessions[-1]["id"])
@@ -1423,24 +1601,52 @@ def show_chat_dashboard():
             st.error("⚠️ 일일 무료 한도를 초과했습니다!")
         else:
             increment_usage()
+            # 이미지 처리
             image_data = []
+            image_urls = []
+            
             if st.session_state.uploaded_images:
                 for img_file in st.session_state.uploaded_images:
                     valid, msg = validate_image_file(img_file)
                     if not valid:
                         st.error(msg)
                         continue
+                        
+                    # 이미지 데이터 준비 (Gemini API용)
                     img_file.seek(0)
-                    image_data.append(img_file.read())
+                    img_bytes = img_file.read()
+                    image_data.append(img_bytes)
+                    
+                    # 로그인한 경우 Supabase에 이미지 업로드
+                    if st.session_state.is_logged_in and st.session_state.user_id:
+                        try:
+                            # 파일 포인터 초기화
+                            img_file.seek(0)
+                            # Supabase에 업로드
+                            image_url = upload_image_to_supabase(img_file, supabase)
+                            if image_url:
+                                image_urls.append(image_url)
+                                logger.info(f"이미지 업로드 성공: {image_url}")
+                            else:
+                                logger.error("이미지 업로드 실패")
+                        except Exception as e:
+                            logger.error(f"이미지 업로드 오류: {str(e)}")
 
             if not st.session_state.messages:
                 st.session_state.messages.append({"role": "assistant", "content": "안녕하세요! 무엇을 도와드릴까요? 😊"})
             
-            st.session_state.messages.append({
+            # 메시지 추가 (이미지 데이터와 URL 모두 저장)
+            new_message = {
                 "role": "user",
                 "content": user_input,
-                "images": image_data
-            })
+                "images": image_data  # Gemini API용 이미지 바이너리 데이터
+            }
+            
+            # 이미지 URL이 있으면 별도로 저장 (Supabase 저장용)
+            if image_urls:
+                new_message["image_urls"] = image_urls
+                
+            st.session_state.messages.append(new_message)
 
             is_pdf_request, pdf_url = is_pdf_summarization_request(user_input)
             has_uploaded_pdf = st.session_state.uploaded_pdf_file is not None
