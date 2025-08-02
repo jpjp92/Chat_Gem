@@ -325,7 +325,7 @@ def save_current_session():
                                         )
                                         
                                         # Supabase에 업로드
-                                        image_url = upload_image_to_supabase(temp_file, supabase)
+                                        image_url = upload_image_to_supabase(temp_file, supabase, "chat-images")
                                         if image_url:
                                             image_urls.append(image_url)
                                             
@@ -844,7 +844,7 @@ def show_chat_dashboard():
                             # 파일 포인터 초기화
                             img_file.seek(0)
                             # Supabase에 업로드
-                            image_url = upload_image_to_supabase(img_file, supabase)
+                            image_url = upload_image_to_supabase(img_file, supabase, "chat-images")
                             if image_url:
                                 image_urls.append(image_url)
                                 logger.info(f"이미지 업로드 성공: {image_url}")
