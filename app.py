@@ -759,8 +759,16 @@ def show_chat_dashboard():
                     cols = st.columns(min(3, len(message["images"])))
                     for idx, img_data in enumerate(message["images"]):
                         with cols[idx % 3]:
-                            img = Image.open(io.BytesIO(img_data))
-                            st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
+                            try:
+                                if isinstance(img_data, str):
+                                    # URL인 경우 직접 표시
+                                    st.image(img_data, caption=f"이미지 {idx+1}", use_container_width=True)
+                                else:
+                                    # 바이너리 데이터인 경우
+                                    img = Image.open(io.BytesIO(img_data))
+                                    st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
+                            except Exception as e:
+                                st.error(f"이미지 로드 실패: {str(e)}")
             if st.button("전체 대화 보기"):
                 del st.session_state.selected_message
                 st.rerun()
@@ -772,8 +780,16 @@ def show_chat_dashboard():
                         cols = st.columns(min(3, len(message["images"])))
                         for idx, img_data in enumerate(message["images"]):
                             with cols[idx % 3]:
-                                img = Image.open(io.BytesIO(img_data))
-                                st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
+                                try:
+                                    if isinstance(img_data, str):
+                                        # URL인 경우 직접 표시
+                                        st.image(img_data, caption=f"이미지 {idx+1}", use_container_width=True)
+                                    else:
+                                        # 바이너리 데이터인 경우
+                                        img = Image.open(io.BytesIO(img_data))
+                                        st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"이미지 로드 실패: {str(e)}")
 
     with st.container():
         with st.expander("📎 첨부 파일", expanded=False):
