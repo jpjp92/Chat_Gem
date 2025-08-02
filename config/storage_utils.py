@@ -12,7 +12,7 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
     이미지 파일을 Supabase Storage에 업로드하고 URL을 반환
     
     Args:
-        image_file: 업로드할 이미지 파일 (streamlit.UploadedFile)
+        image_file: 업로드할 이미지 파일 (streamlit.UploadedFile 또는 BytesIO)
         supabase_client: Supabase 클라이언트 인스턴스
         bucket_name: 이미지를 저장할 버킷 이름 (기본값: "chat-images")
         
@@ -22,7 +22,18 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
     try:
         # 고유한 파일 이름 생성 (충돌 방지)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        unique_filename = f"{timestamp}_{uuid.uuid4().hex}_{image_file.name}"
+        
+        # 파일명과 타입 처리
+        if hasattr(image_file, 'name') and hasattr(image_file, 'type'):
+            # Streamlit UploadedFile
+            filename = image_file.name
+            content_type = image_file.type
+        else:
+            # BytesIO 객체
+            filename = getattr(image_file, 'name', f"image_{uuid.uuid4().hex}.jpg")
+            content_type = getattr(image_file, 'type', "image/jpeg")
+        
+        unique_filename = f"{timestamp}_{uuid.uuid4().hex}_{filename}"
         
         # 이미지 파일 읽기
         image_file.seek(0)
@@ -32,7 +43,7 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
-            file_options={"content-type": image_file.type}
+            file_options={"content-type": content_type}
         )
         
         # 업로드된 이미지의 공개 URL 가져오기
