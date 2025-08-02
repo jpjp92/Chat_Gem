@@ -26,6 +26,15 @@ from config.prompts import (
     summarize_webpage_with_gemini_multiturn,
 )
 
+# Set storage utilities for Supabase
+from config.storage_utils import (
+    upload_image_to_supabase,
+    upload_pdf_to_supabase,
+    save_chat_history_to_supabase,
+    load_chat_history_from_supabase,
+    get_chat_sessions_from_supabase,
+)
+
 # Set utility functions for handling various tasks
 from config.utils import (
     extract_video_id,
@@ -311,26 +320,28 @@ def save_current_session():
                                     # 임시 파일로 저장 후 업로드
                                     try:
                                         from tempfile import NamedTemporaryFile
+                                        import io
+                                        
+                                        # 임시 파일 생성 및 이미지 데이터 저장
                                         with NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
                                             tmp.write(img_data)
                                             tmp_path = tmp.name
-                                            
-                                        # 임시 파일로부터 업로드
-                                        from streamlit.runtime.uploaded_file_manager import UploadedFile
-                                        temp_file = UploadedFile(
-                                            name=f"image_{uuid.uuid4()}.jpg",
-                                            type="image/jpeg",
-                                            size=len(img_data),
-                                            file=open(tmp_path, "rb")
-                                        )
+                                        
+                                        # 임시 파일을 다시 열어서 BytesIO로 변환
+                                        with open(tmp_path, 'rb') as f:
+                                            image_bytes = f.read()
+                                        
+                                        # BytesIO 객체 생성 (UploadedFile처럼 사용 가능)
+                                        image_io = io.BytesIO(image_bytes)
+                                        image_io.name = f"image_{uuid.uuid4()}.jpg"
+                                        image_io.type = "image/jpeg"
                                         
                                         # Supabase에 업로드
-                                        image_url = upload_image_to_supabase(temp_file, supabase, "chat-images")
+                                        image_url = upload_image_to_supabase(image_io, supabase, "chat-images")
                                         if image_url:
                                             image_urls.append(image_url)
                                             
                                         # 임시 파일 정리
-                                        temp_file.file.close()
                                         os.unlink(tmp_path)
                                     except Exception as e:
                                         logger.error(f"이미지 업로드 중 오류: {str(e)}")
