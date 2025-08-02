@@ -1,14 +1,9 @@
 import logging
 import uuid
 import json
+import io
+import os
 from datetime import datetime
-i    try:
-        # 고유한 파일 이름 생성 (충돌 방지) - 한글 문제 해결을 위해 원본 파일명 제거
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # 파일 확장자 추출
-        import os
-        file_ext = os.path.splitext(image_file.name)[1] if hasattr(image_file, 'name') else '.jpg'
-        unique_filename = f"{timestamp}_{uuid.uuid4().hex}{file_ext}"t io
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -32,7 +27,6 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         # 파일명과 타입 처리
         if hasattr(image_file, 'name') and hasattr(image_file, 'type'):
             # Streamlit UploadedFile
-            import os
             file_ext = os.path.splitext(image_file.name)[1] if image_file.name else '.jpg'
             content_type = image_file.type
         else:
@@ -48,6 +42,28 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         file_bytes = image_file.read()
         
         # Supabase Storage에 업로드 (upsert 옵션으로 RLS 정책 문제 해결)
+        upload_response = supabase_client.storage.from_(bucket_name).upload(
+            path=unique_filename,
+            file=file_bytes,
+            file_options={
+                "content-type": content_type,
+                "upsert": True
+            }
+        )
+        
+        # 업로드 결과 확인
+        if hasattr(upload_response, 'data') and upload_response.data:
+            # 업로드된 이미지의 공개 URL 가져오기
+            image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
+            logger.info(f"이미지 업로드 성공: {unique_filename}")
+            return image_url
+        else:
+            logger.error(f"이미지 업로드 실패: {upload_response}")
+            return None
+    
+    except Exception as e:
+        logger.error(f"이미지 업로드 실패: {str(e)}")
+        return None
         upload_response = supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
