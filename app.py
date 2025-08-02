@@ -46,7 +46,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Supabase 클라이언트 초기화
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Supabase 클라이언트 초기화 성공")
+    else:
+        supabase = None
+        st.warning("⚠️ Supabase 환경 변수가 설정되지 않았습니다. Supabase 관련 기능은 비활성화됩니다.")
+        logger.warning("Supabase 환경 변수 누락")
+except Exception as e:
+    supabase = None
+    st.warning(f"⚠️ Supabase 연결 오류: {e}")
+    logger.error(f"Supabase 연결 실패: {e}")
 
 # Page configuration
 st.set_page_config(
@@ -116,7 +127,7 @@ def initialize_session_state():
     # 로그인 상태인데 현재 세션이 없으면 세션 목록 로드 후 첫 세션 열기
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
         # Supabase에서 사용자의 세션 목록 가져오기
-        if st.session_state.user_id:
+        if st.session_state.user_id and supabase:
             try:
                 # Supabase에서 세션 목록 로드
                 supabase_sessions = get_chat_sessions_from_supabase(supabase, st.session_state.user_id)
@@ -153,6 +164,10 @@ def clear_cached_content():
 
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
+    if not supabase:
+        # Supabase가 없으면 더미 사용자 ID 반환
+        return hash(nickname) % 1000000, False
+        
     try:
         user_response = supabase.table("users").select("*").eq("nickname", nickname).execute()
         if user_response.data:
@@ -271,7 +286,7 @@ def save_current_session():
                 break
                 
         # Supabase에 채팅 이력 저장 (이미지 업로드 및 URL 변환 처리)
-        if st.session_state.is_logged_in and st.session_state.user_id and st.session_state.messages:
+        if st.session_state.is_logged_in and st.session_state.user_id and st.session_state.messages and supabase:
             try:
                 # 메시지 복사본 생성 (이미지 URL 변환을 위해)
                 messages_to_save = []
@@ -353,7 +368,7 @@ def load_session(session_id):
             break
             
     # Supabase에서 세션 로드 (로그인된 사용자인 경우)
-    if st.session_state.is_logged_in and st.session_state.user_id:
+    if st.session_state.is_logged_in and st.session_state.user_id and supabase:
         try:
             # Supabase에서 채팅 이력 로드
             messages = load_chat_history_from_supabase(supabase, session_id)
@@ -401,7 +416,7 @@ def delete_session(session_id):
     st.session_state.chat_sessions = [s for s in st.session_state.chat_sessions if s["id"] != session_id]
     
     # Supabase에서 세션 삭제
-    if st.session_state.is_logged_in and st.session_state.user_id:
+    if st.session_state.is_logged_in and st.session_state.user_id and supabase:
         try:
             # 채팅 이력 삭제
             supabase.table("chat_history").delete().eq("session_id", session_id).execute()
@@ -824,7 +839,7 @@ def show_chat_dashboard():
                     image_data.append(img_bytes)
                     
                     # 로그인한 경우 Supabase에 이미지 업로드
-                    if st.session_state.is_logged_in and st.session_state.user_id:
+                    if st.session_state.is_logged_in and st.session_state.user_id and supabase:
                         try:
                             # 파일 포인터 초기화
                             img_file.seek(0)
