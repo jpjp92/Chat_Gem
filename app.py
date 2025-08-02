@@ -373,8 +373,9 @@ def load_session(session_id):
     for session in st.session_state.chat_sessions:
         if session["id"] == session_id:
             st.session_state.current_session_id = session_id
-            st.session_state.messages = session["messages"].copy()
-            st.session_state.chat_history = session["chat_history"].copy()
+            # 안전하게 메시지 복사 (빈 리스트로 초기화 후 복사)
+            st.session_state.messages = session.get("messages", []).copy() if session.get("messages") else []
+            st.session_state.chat_history = session.get("chat_history", []).copy() if session.get("chat_history") else []
             local_session_found = True
             break
             

@@ -264,17 +264,36 @@ def get_chat_sessions_from_supabase(supabase_client, user_id):
                 if session_id not in sessions:
                     # 첫 번째 질문을 제목으로 사용
                     title = question[:30] + "..." if len(question) > 30 else question
+                    
+                    # datetime 안전 처리
+                    try:
+                        if isinstance(created_at, str):
+                            dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        else:
+                            dt = created_at
+                    except (ValueError, TypeError):
+                        dt = datetime.now()
+                    
                     sessions[session_id] = {
                         "id": session_id,
                         "title": title,
-                        "created_at": datetime.fromisoformat(created_at.replace('Z', '+00:00')) if isinstance(created_at, str) else created_at,
-                        "last_updated": datetime.fromisoformat(created_at.replace('Z', '+00:00')) if isinstance(created_at, str) else created_at
+                        "created_at": dt,
+                        "last_updated": dt,
+                        "messages": [],  # 빈 메시지 리스트로 초기화
+                        "chat_history": []  # 빈 채팅 히스토리로 초기화
                     }
                 else:
                     # 마지막 업데이트 시간 갱신
-                    last_updated = datetime.fromisoformat(created_at.replace('Z', '+00:00')) if isinstance(created_at, str) else created_at
-                    if last_updated > sessions[session_id]["last_updated"]:
-                        sessions[session_id]["last_updated"] = last_updated
+                    try:
+                        if isinstance(created_at, str):
+                            last_updated = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        else:
+                            last_updated = created_at
+                        
+                        if last_updated > sessions[session_id]["last_updated"]:
+                            sessions[session_id]["last_updated"] = last_updated
+                    except (ValueError, TypeError):
+                        pass  # 오류 시 업데이트하지 않음
                     
         # 세션 목록을 최신 업데이트 순으로 정렬
         sorted_sessions = list(sessions.values())
