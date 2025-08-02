@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Set library imports
 from config.imports import *
+from datetime import timezone
 
 # Set environment variables
 from config.env import GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY
@@ -111,7 +112,7 @@ def initialize_session_state():
     if "welcome_dismissed" not in st.session_state:
         st.session_state.welcome_dismissed = False
     if "usage_data" not in st.session_state:
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 0}
     # PDF 캐싱
     if "current_pdf_url" not in st.session_state:
@@ -154,7 +155,20 @@ def initialize_session_state():
         
         # 세션이 있으면 첫 세션 로드, 없으면 새 세션 생성
         if st.session_state.chat_sessions:
-            st.session_state.chat_sessions.sort(key=lambda x: x['last_updated'], reverse=True)
+            # datetime 객체의 timezone 정보를 통일하여 정렬
+            def get_sortable_datetime(session):
+                last_updated = session['last_updated']
+                if isinstance(last_updated, str):
+                    try:
+                        return datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                    except:
+                        return datetime.now(timezone.utc)
+                elif hasattr(last_updated, 'replace') and last_updated.tzinfo is None:
+                    return last_updated.replace(tzinfo=timezone.utc)
+                else:
+                    return last_updated
+            
+            st.session_state.chat_sessions.sort(key=get_sortable_datetime, reverse=True)
             load_session(st.session_state.chat_sessions[0]["id"])
         else:
             create_new_chat_session()
@@ -184,7 +198,7 @@ def create_or_get_user(nickname):
             return user_response.data[0]["id"], True
         new_user_response = supabase.table("users").insert({
             "nickname": nickname,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }).execute()
         if new_user_response.data:
             logger.info(f"새 사용자 생성: {nickname}")
@@ -250,13 +264,14 @@ def create_new_chat_session():
     """새 채팅 세션 생성"""
     session_id = str(uuid.uuid4())
     session_title = f"새 대화 {len(st.session_state.chat_sessions) + 1}"
+    current_time = datetime.now(timezone.utc)
     session_data = {
         "id": session_id,
         "title": session_title,
         "messages": [],
         "chat_history": [],
-        "created_at": datetime.now(),
-        "last_updated": datetime.now()
+        "created_at": current_time,
+        "last_updated": current_time
     }
     st.session_state.chat_sessions.append(session_data)
     st.session_state.current_session_id = session_id
@@ -285,7 +300,7 @@ def save_current_session():
             if session["id"] == st.session_state.current_session_id:
                 session["messages"] = st.session_state.messages.copy()
                 session["chat_history"] = st.session_state.chat_history.copy()
-                session["last_updated"] = datetime.now()
+                session["last_updated"] = datetime.now(timezone.utc)
                 if st.session_state.messages:
                     first_user_message = next((msg["content"] for msg in st.session_state.messages if msg["role"] == "user"), "")
                     if first_user_message:
@@ -395,13 +410,14 @@ def load_session(session_id):
                         session_title = f"대화 {len(st.session_state.chat_sessions) + 1}"
                     
                     # 새 세션 생성
+                    current_time = datetime.now(timezone.utc)
                     new_session = {
                         "id": session_id,
                         "title": session_title,
                         "messages": messages,
                         "chat_history": [],  # Gemini 채팅 이력은 따로 관리
-                        "created_at": datetime.now(),
-                        "last_updated": datetime.now()
+                        "created_at": current_time,
+                        "last_updated": current_time
                     }
                     st.session_state.chat_sessions.append(new_session)
                     st.session_state.current_session_id = session_id
@@ -511,7 +527,7 @@ def is_pdf_analysis_request(query, has_pdf):
 
 def get_usage_count():
     """일일 사용량 추적"""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if "usage_data" not in st.session_state:
         st.session_state.usage_data = {"date": today, "count": 0}
     if st.session_state.usage_data["date"] != today:
@@ -523,7 +539,7 @@ def increment_usage():
     if "usage_data" in st.session_state:
         st.session_state.usage_data["count"] += 1
     else:
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 1}
 
 def detect_language(text):
@@ -591,8 +607,23 @@ def show_chat_dashboard():
             if not st.session_state.chat_sessions:
                 st.markdown("*대화 기록이 없습니다*")
             else:
+                # datetime 객체의 timezone 정보를 통일하여 정렬
+                def get_sortable_datetime(session):
+                    last_updated = session['last_updated']
+                    if isinstance(last_updated, str):
+                        # 문자열인 경우 datetime으로 변환
+                        try:
+                            return datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                        except:
+                            return datetime.now()
+                    elif hasattr(last_updated, 'replace') and last_updated.tzinfo is None:
+                        # timezone이 없는 datetime인 경우 UTC로 설정
+                        return last_updated.replace(tzinfo=timezone.utc)
+                    else:
+                        return last_updated
+                
                 sorted_sessions = sorted(st.session_state.chat_sessions, 
-                                         key=lambda x: x['last_updated'], reverse=True)
+                                         key=get_sortable_datetime, reverse=True)
                 for idx, session in enumerate(sorted_sessions[:5]):
                     is_current = session['id'] == st.session_state.current_session_id
                     title = session['title'][:25] + "..." if len(session['title']) > 25 else session['title']
