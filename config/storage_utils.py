@@ -2,7 +2,13 @@ import logging
 import uuid
 import json
 from datetime import datetime
-import io
+i    try:
+        # 고유한 파일 이름 생성 (충돌 방지) - 한글 문제 해결을 위해 원본 파일명 제거
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # 파일 확장자 추출
+        import os
+        file_ext = os.path.splitext(image_file.name)[1] if hasattr(image_file, 'name') else '.jpg'
+        unique_filename = f"{timestamp}_{uuid.uuid4().hex}{file_ext}"t io
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -20,37 +26,46 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         image_url: 업로드된 이미지의 URL
     """
     try:
-        # 고유한 파일 이름 생성 (충돌 방지)
+        # 고유한 파일 이름 생성 (충돌 방지) - 한글 문제 해결을 위해 원본 파일명 제거
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # 파일명과 타입 처리
         if hasattr(image_file, 'name') and hasattr(image_file, 'type'):
             # Streamlit UploadedFile
-            filename = image_file.name
+            import os
+            file_ext = os.path.splitext(image_file.name)[1] if image_file.name else '.jpg'
             content_type = image_file.type
         else:
             # BytesIO 객체
-            filename = getattr(image_file, 'name', f"image_{uuid.uuid4().hex}.jpg")
+            file_ext = '.jpg'
             content_type = getattr(image_file, 'type', "image/jpeg")
         
-        unique_filename = f"{timestamp}_{uuid.uuid4().hex}_{filename}"
+        # 안전한 파일명 생성 (한글 및 특수문자 제거)
+        unique_filename = f"{timestamp}_{uuid.uuid4().hex}{file_ext}"
         
         # 이미지 파일 읽기
         image_file.seek(0)
         file_bytes = image_file.read()
         
-        # Supabase Storage에 업로드
-        supabase_client.storage.from_(bucket_name).upload(
+        # Supabase Storage에 업로드 (upsert 옵션으로 RLS 정책 문제 해결)
+        upload_response = supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
-            file_options={"content-type": content_type}
+            file_options={
+                "content-type": content_type,
+                "upsert": True  # 기존 파일 덮어쓰기 허용
+            }
         )
         
-        # 업로드된 이미지의 공개 URL 가져오기
-        image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
-        
-        logger.info(f"이미지 업로드 성공: {unique_filename}")
-        return image_url
+        # 업로드 성공 확인
+        if upload_response:
+            # 업로드된 이미지의 공개 URL 가져오기
+            image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
+            logger.info(f"이미지 업로드 성공: {unique_filename}")
+            return image_url
+        else:
+            logger.error(f"이미지 업로드 실패: 응답이 없음")
+            return None
     
     except Exception as e:
         logger.error(f"이미지 업로드 실패: {str(e)}")
