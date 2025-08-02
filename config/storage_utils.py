@@ -3,7 +3,7 @@ import uuid
 import json
 import io
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -41,18 +41,17 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         image_file.seek(0)
         file_bytes = image_file.read()
         
-        # Supabase Storage에 업로드 (upsert 옵션으로 RLS 정책 문제 해결)
+        # Supabase Storage에 업로드 (문자열로만 헤더 값 설정)
         upload_response = supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
             file_options={
-                "content-type": content_type,
-                "upsert": True
+                "content-type": content_type
             }
         )
         
-        # 업로드 결과 확인
-        if hasattr(upload_response, 'data') and upload_response.data:
+        # 업로드 성공 확인
+        if upload_response and not hasattr(upload_response, 'error'):
             # 업로드된 이미지의 공개 URL 가져오기
             image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
             logger.info(f"이미지 업로드 성공: {unique_filename}")
@@ -64,30 +63,8 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
     except Exception as e:
         logger.error(f"이미지 업로드 실패: {str(e)}")
         return None
-        upload_response = supabase_client.storage.from_(bucket_name).upload(
-            path=unique_filename,
-            file=file_bytes,
-            file_options={
-                "content-type": content_type,
-                "upsert": True  # 기존 파일 덮어쓰기 허용
-            }
-        )
-        
-        # 업로드 성공 확인
-        if upload_response:
-            # 업로드된 이미지의 공개 URL 가져오기
-            image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
-            logger.info(f"이미지 업로드 성공: {unique_filename}")
-            return image_url
-        else:
-            logger.error(f"이미지 업로드 실패: 응답이 없음")
-            return None
-    
-    except Exception as e:
-        logger.error(f"이미지 업로드 실패: {str(e)}")
-        return None
 
-def upload_pdf_to_supabase(pdf_file, supabase_client, bucket_name="test-pdf"):
+def upload_pdf_to_supabase(pdf_file, supabase_client, bucket_name="chat-pdfs"):
     """
     PDF 파일을 Supabase Storage에 업로드하고 URL을 반환
     
@@ -112,7 +89,7 @@ def upload_pdf_to_supabase(pdf_file, supabase_client, bucket_name="test-pdf"):
         supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
-            file_options={"content-type": "application/pdf"}
+            file_options={"content-type": pdf_file.type}
         )
         
         # 업로드된 PDF의 공개 URL 가져오기
@@ -159,7 +136,7 @@ def save_chat_history_to_supabase(supabase_client, user_id, session_id, messages
                     "question": current_question,
                     "answer": msg.get("content", ""),
                     "time_taken": 0.0,  # 현재는 시간 측정 안함
-                    "created_at": datetime.now().isoformat()
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 
                 # 이미지가 있는 경우 URL 배열로 저장
@@ -265,22 +242,26 @@ def get_chat_sessions_from_supabase(supabase_client, user_id):
                     # 첫 번째 질문을 제목으로 사용
                     title = question[:30] + "..." if len(question) > 30 else question
                     
-                    # datetime 안전 처리
+                    # datetime 처리 - 안전하게 변환
                     try:
                         if isinstance(created_at, str):
+                            # ISO 문자열을 datetime으로 변환
                             dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                         else:
                             dt = created_at
-                    except (ValueError, TypeError):
-                        dt = datetime.now()
+                            
+                        # timezone이 없으면 UTC 추가
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                            
+                    except (ValueError, AttributeError):
+                        dt = datetime.now(timezone.utc)
                     
                     sessions[session_id] = {
                         "id": session_id,
                         "title": title,
                         "created_at": dt,
-                        "last_updated": dt,
-                        "messages": [],  # 빈 메시지 리스트로 초기화
-                        "chat_history": []  # 빈 채팅 히스토리로 초기화
+                        "last_updated": dt
                     }
                 else:
                     # 마지막 업데이트 시간 갱신
@@ -289,11 +270,14 @@ def get_chat_sessions_from_supabase(supabase_client, user_id):
                             last_updated = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                         else:
                             last_updated = created_at
-                        
+                            
+                        if last_updated.tzinfo is None:
+                            last_updated = last_updated.replace(tzinfo=timezone.utc)
+                            
                         if last_updated > sessions[session_id]["last_updated"]:
                             sessions[session_id]["last_updated"] = last_updated
-                    except (ValueError, TypeError):
-                        pass  # 오류 시 업데이트하지 않음
+                    except (ValueError, AttributeError):
+                        pass
                     
         # 세션 목록을 최신 업데이트 순으로 정렬
         sorted_sessions = list(sessions.values())
