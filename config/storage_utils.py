@@ -3,6 +3,7 @@ import uuid
 import json
 import io
 import os
+import hashlib
 from datetime import datetime, timezone
 from PIL import Image
 
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-images"):
     """
     이미지 파일을 Supabase Storage에 업로드하고 URL을 반환
+    중복 이미지는 기존 URL을 반환하여 저장 공간을 절약
     
     Args:
         image_file: 업로드할 이미지 파일 (streamlit.UploadedFile 또는 BytesIO)
@@ -21,8 +23,12 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         image_url: 업로드된 이미지의 URL
     """
     try:
-        # 고유한 파일 이름 생성 (충돌 방지) - 한글 문제 해결을 위해 원본 파일명 제거
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # 이미지 파일 읽기
+        image_file.seek(0)
+        file_bytes = image_file.read()
+        
+        # 이미지 해시 생성 (중복 체크용)
+        image_hash = hashlib.md5(file_bytes).hexdigest()
         
         # 파일명과 타입 처리
         if hasattr(image_file, 'name') and hasattr(image_file, 'type'):
@@ -34,27 +40,42 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
             file_ext = '.jpg'
             content_type = getattr(image_file, 'type', "image/jpeg")
         
-        # 안전한 파일명 생성 (한글 및 특수문자 제거)
-        unique_filename = f"{timestamp}_{uuid.uuid4().hex}{file_ext}"
+        # 해시 기반 파일명 생성 (같은 이미지는 같은 파일명을 가짐)
+        hash_filename = f"{image_hash}{file_ext}"
         
-        # 이미지 파일 읽기
-        image_file.seek(0)
-        file_bytes = image_file.read()
+        # 기존 파일 존재 여부 확인
+        try:
+            # Storage list API로 파일 존재 확인
+            existing_files = supabase_client.storage.from_(bucket_name).list()
+            
+            # 파일명이 이미 존재하는지 확인
+            file_exists = any(file.get('name') == hash_filename for file in existing_files)
+            
+            if file_exists:
+                # 기존 파일의 URL 반환
+                image_url = supabase_client.storage.from_(bucket_name).get_public_url(hash_filename)
+                logger.info(f"기존 이미지 재사용: {hash_filename}")
+                return image_url
+                
+        except Exception as e:
+            # 파일 존재 확인 실패 시 새로 업로드 진행
+            logger.warning(f"파일 존재 확인 실패, 새로 업로드 진행: {str(e)}")
         
-        # Supabase Storage에 업로드 (문자열로만 헤더 값 설정)
+        # 새 이미지 업로드
         upload_response = supabase_client.storage.from_(bucket_name).upload(
-            path=unique_filename,
+            path=hash_filename,
             file=file_bytes,
             file_options={
-                "content-type": content_type
+                "content-type": content_type,
+                "upsert": "true"  # 동일한 파일명이 있으면 덮어쓰기
             }
         )
         
         # 업로드 성공 확인
         if upload_response and not hasattr(upload_response, 'error'):
             # 업로드된 이미지의 공개 URL 가져오기
-            image_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
-            logger.info(f"이미지 업로드 성공: {unique_filename}")
+            image_url = supabase_client.storage.from_(bucket_name).get_public_url(hash_filename)
+            logger.info(f"새 이미지 업로드 성공: {hash_filename}")
             return image_url
         else:
             logger.error(f"이미지 업로드 실패: {upload_response}")
