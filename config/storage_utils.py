@@ -9,7 +9,7 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-images"):
+def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-images", user_id=None):
     """
     이미지 파일을 Supabase Storage에 업로드하고 URL을 반환
     중복 이미지는 기존 URL을 반환하여 저장 공간을 절약
@@ -18,6 +18,7 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         image_file: 업로드할 이미지 파일 (streamlit.UploadedFile 또는 BytesIO)
         supabase_client: Supabase 클라이언트 인스턴스
         bucket_name: 이미지를 저장할 버킷 이름 (기본값: "chat-images")
+        user_id: 사용자 ID (폴더 구분용)
         
     Returns:
         image_url: 업로드된 이미지의 URL
@@ -36,20 +37,34 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
             file_ext = os.path.splitext(image_file.name)[1] if image_file.name else '.jpg'
             content_type = image_file.type
         else:
-            # BytesIO 객체
-            file_ext = '.jpg'
+            # BytesIO 객체 - content_type으로부터 확장자 추론
             content_type = getattr(image_file, 'type', "image/jpeg")
+            if 'png' in content_type.lower():
+                file_ext = '.png'
+            elif 'gif' in content_type.lower():
+                file_ext = '.gif'
+            elif 'webp' in content_type.lower():
+                file_ext = '.webp'
+            else:
+                file_ext = '.jpg'
         
-        # 해시 기반 파일명 생성 (같은 이미지는 같은 파일명을 가짐)
-        hash_filename = f"{image_hash}{file_ext}"
+        # 사용자별 폴더 + 해시 기반 파일명 생성
+        if user_id:
+            hash_filename = f"user_{user_id}/{image_hash}{file_ext}"
+        else:
+            hash_filename = f"shared/{image_hash}{file_ext}"
         
         # 기존 파일 존재 여부 확인
         try:
             # Storage list API로 파일 존재 확인
-            existing_files = supabase_client.storage.from_(bucket_name).list()
+            if user_id:
+                existing_files = supabase_client.storage.from_(bucket_name).list(f"user_{user_id}")
+            else:
+                existing_files = supabase_client.storage.from_(bucket_name).list("shared")
             
             # 파일명이 이미 존재하는지 확인
-            file_exists = any(file.get('name') == hash_filename for file in existing_files)
+            target_filename = f"{image_hash}{file_ext}"
+            file_exists = any(file.get('name') == target_filename for file in existing_files)
             
             if file_exists:
                 # 기존 파일의 URL 반환
