@@ -9,19 +9,19 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
+import logging
+import hashlib
+import os
+
+logger = logging.getLogger(__name__)
+
 def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-images", user_id=None):
     try:
-        # 버킷 존재 확인
-        try:
-            bucket_info = supabase_client.storage.get_bucket(bucket_name)
-            logger.info(f"버킷 정보: {bucket_info}")
-        except Exception as e:
-            logger.error(f"버킷 확인 실패: {e}")
-        
         image_file.seek(0)
         file_bytes = image_file.read()
-        logger.info(f"업로드 데이터 크기: {len(file_bytes)} 바이트, 원본 content-type: {getattr(image_file, 'type', 'unknown')}")
+        logger.info(f"업로드 데이터 크기: {len(file_bytes)} 바이트")
         
+        # 파일 확장자 및 content-type 설정
         if hasattr(image_file, 'name') and hasattr(image_file, 'type'):
             file_ext = os.path.splitext(image_file.name)[1].lower()
             content_type_map = {
@@ -37,6 +37,7 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         
         logger.info(f"사용 content-type: {content_type}")
         
+        # 해시 기반 파일명 생성
         image_hash = hashlib.md5(file_bytes).hexdigest()
         if user_id:
             hash_filename = f"u{user_id}_{image_hash}{file_ext}"
@@ -45,10 +46,10 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         
         logger.info(f"업로드할 파일명: {hash_filename}")
         
-        # 업로드 옵션 로깅
+        # 수정된 업로드 옵션 (upsert를 문자열로 변경)
         upload_options = {
             "content-type": content_type, 
-            "upsert": True
+            "upsert": "true"  # boolean이 아닌 문자열로 변경
         }
         logger.info(f"업로드 옵션: {upload_options}")
         
@@ -59,21 +60,33 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
             file_options=upload_options
         )
         
+        logger.info(f"업로드 응답 타입: {type(upload_response)}")
         logger.info(f"업로드 응답: {upload_response}")
         
-        if upload_response and not hasattr(upload_response, 'error'):
-            image_url = supabase_client.storage.from_(bucket_name).get_public_url(hash_filename)
-            logger.info(f"업로드 성공, URL: {image_url}")
-            return image_url
+        # 응답 확인 로직 개선
+        if upload_response:
+            # 성공 여부 확인
+            if hasattr(upload_response, 'error') and upload_response.error:
+                logger.error(f"업로드 실패: {upload_response.error}")
+                return None
+            else:
+                # 성공한 경우 URL 생성
+                try:
+                    image_url = supabase_client.storage.from_(bucket_name).get_public_url(hash_filename)
+                    logger.info(f"업로드 성공, URL: {image_url}")
+                    return image_url
+                except Exception as url_error:
+                    logger.error(f"URL 생성 실패: {url_error}")
+                    return None
         else:
-            error_msg = upload_response.error if hasattr(upload_response, 'error') else upload_response
-            logger.error(f"업로드 실패, 응답: {error_msg}")
+            logger.error("업로드 응답이 None입니다")
             return None
             
     except Exception as upload_error:
         logger.error(f"업로드 예외: {str(upload_error)}")
+        logger.error(f"예외 타입: {type(upload_error)}")
         
-        # 예외 내용이 딕셔너리인 경우 더 자세히 로깅
+        # 예외 내용 상세 로깅
         if hasattr(upload_error, 'args') and upload_error.args:
             logger.error(f"예외 상세: {upload_error.args}")
         
