@@ -1053,7 +1053,6 @@
 # if __name__ == "__main__":
 #     main()
 
-적용전에 오타 없는지 한번 호가인해주고 
 # app.py: Streamlit App for Gemini AI Interactions
 
 import sys
