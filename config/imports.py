@@ -1,3 +1,4 @@
+# config/imports.py
 # =========================
 # Chat_Gem Common Library Imports
 # =========================
@@ -49,3 +50,6 @@ from requests.adapters import HTTPAdapter
 from supabase import create_client
 from timezonefinder import TimezoneFinder
 # import yt_dlp
+
+# Logger 설정
+logger = logging.getLogger(__name__)
