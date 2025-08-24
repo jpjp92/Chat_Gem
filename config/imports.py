@@ -48,8 +48,16 @@ from diskcache import Cache
 from langdetect import detect
 from requests.adapters import HTTPAdapter
 from supabase import create_client
-from timezonefinder import TimezoneFinder
-# import yt_dlp
 
 # Logger 설정
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)  # 기본 로그 레벨 설정
+
+# Supabase 클라이언트 초기화 (환경 변수 사용)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
+# 나머지 임포트
+from timezonefinder import TimezoneFinder
+# import yt_dlp
