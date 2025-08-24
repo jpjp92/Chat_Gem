@@ -55,10 +55,7 @@ def initialize_session_state():
 
     # Supabase 연결 상태에 따른 경고 메시지 표시 (다국어 적용)
     if not supabase:
-        if SUPABASE_URL and SUPABASE_KEY:
-            st.warning(get_text("supabase_error", st.session_state.system_language, str(e)))
-        else:
-            st.warning(get_text("supabase_warning", st.session_state.system_language))
+        st.warning(get_text("supabase_warning", st.session_state.system_language))  # e 변수 제거 (초기화 실패 시)
 
     # 로그인 상태인데 현재 세션이 없으면 세션 목록 로드 후 첫 세션 열기
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
