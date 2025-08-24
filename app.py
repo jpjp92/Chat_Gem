@@ -1789,7 +1789,7 @@ def show_chat_dashboard():
                 st.rerun()
         
         # 사용량 상태 표시 (다국어 적용)
-        from config.i18n import get_usage_status_info
+        from config.lang import get_usage_status_info
         with st.expander(get_text("today_usage", lang), expanded=True):
             usage_count = get_usage_count()
             usage_percentage = min(usage_count / 100, 1.0)
