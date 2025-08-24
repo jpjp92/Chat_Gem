@@ -1,3 +1,4 @@
+# coding: utf-8
 # config/session_manager.py
 from datetime import timezone
 import uuid
@@ -5,11 +6,8 @@ import os
 import io
 import json
 from config.storage_utils import save_chat_history_to_supabase, load_chat_history_from_supabase, get_chat_sessions_from_supabase
-from config.imports import st, Image, datetime, re, supabase
-import logging
+from config.imports import st, logger, Image, datetime, re, supabase
 
-# 로거 설정
-logger = logging.getLogger(__name__)
 def initialize_session_state():
     """세션 상태 초기화"""
     if "is_logged_in" not in st.session_state:
