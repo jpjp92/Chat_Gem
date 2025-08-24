@@ -7,6 +7,7 @@ import io
 import json
 from config.storage_utils import save_chat_history_to_supabase, load_chat_history_from_supabase, get_chat_sessions_from_supabase
 from config.imports import st, logger, Image, datetime, re, supabase
+from config.lang import get_text  # get_text 함수 임포트 추가
 
 def initialize_session_state():
     """세션 상태 초기화"""
