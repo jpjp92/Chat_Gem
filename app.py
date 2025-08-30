@@ -253,10 +253,10 @@ def increment_usage():
         st.session_state.usage_data = {"date": today, "count": 1}
 
 def detect_response_language(user_input: str, system_language: str) -> str:
-    """사용자 입력에서 응답 언어를 감지합니다"""
+    """사용자 입력에서 응답 언어를 감지합니다 (개선된 버전)"""
     user_input_lower = user_input.lower()
     
-    # 명시적 언어 요청 감지
+    # 1. 명시적 언어 요청 감지 (최우선)
     if any(phrase in user_input_lower for phrase in ["한국어로", "in korean", "en coreano"]):
         return "ko"
     elif any(phrase in user_input_lower for phrase in ["in english", "영어로", "en inglés"]):
@@ -264,8 +264,45 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     elif any(phrase in user_input_lower for phrase in ["in spanish", "스페인어로", "en español"]):
         return "es"
     
-    # 명시적 요청이 없으면 시스템 언어 사용
+    # 2. 입력 언어 감지 및 적용
+    detected_lang, confidence = detect_dominant_language(user_input, system_language)
+    
+    # 3. 감지된 언어가 다르고 신뢰도가 있으면 해당 언어로 응답
+    if detected_lang != system_language and confidence >= 0.4:  # 임계값 완화
+        logger.info(f"언어 감지 결과: {detected_lang}, 신뢰도: {confidence:.2f}")
+        return detected_lang
+    
+    # 4. 그 외의 경우: 시스템 언어 사용
     return system_language
+
+def create_model_for_language(language: str):
+    """특정 언어에 맞는 Gemini 모델을 생성합니다"""
+    system_prompt = get_system_prompt(language)
+    safety_settings = {
+        'HARASSMENT': 'BLOCK_NONE',
+        'HATE_SPEECH': 'BLOCK_NONE',
+        'SEXUALLY_EXPLICIT': 'BLOCK_NONE',
+        'DANGEROUS': 'BLOCK_NONE',
+    }
+    
+    # 언어별 응답 가이드라인 (강제하지 않고 가이드만 제공)
+    language_names = {
+        "ko": "한국어",
+        "en": "English", 
+        "es": "español"
+    }
+    
+    system_prompt_with_lang = f"""{system_prompt}
+
+사용자의 입력 언어나 명시적 요청에 따라 적절한 언어로 응답해주세요.
+- 사용자가 한국어로 입력하면 한국어로 응답
+- 사용자가 영어로 입력하면 영어로 응답  
+- 사용자가 스페인어로 입력하면 스페인어로 응답
+- 명시적인 언어 요청이 있으면 해당 언어로 응답
+
+기본 선호 언어는 {language_names.get(language, language)}입니다."""
+    
+    return genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
 
 def create_summary(text: str, target_length: int = 400) -> str:
     """글자수 기준 요약 생성 (최종 폴백용)"""
@@ -301,15 +338,8 @@ def show_chat_dashboard():
     lang = st.session_state.system_language
     logger.info(f"System language: {lang}")
     
-    system_prompt = get_system_prompt(lang)
-    safety_settings = {
-        'HARASSMENT': 'BLOCK_NONE',
-        'HATE_SPEECH': 'BLOCK_NONE',
-        'SEXUALLY_EXPLICIT': 'BLOCK_NONE',
-        'DANGEROUS': 'BLOCK_NONE',
-    }
-    system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {lang} 언어로 제공되어야 합니다. 응답 언어를 {lang}로 유지하세요."
-    model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
+    # 기본 모델 생성
+    model = create_model_for_language(lang)
 
     with st.sidebar:
         st.header(get_text("settings", lang))
@@ -380,9 +410,7 @@ def show_chat_dashboard():
             new_lang = get_lang_code_from_option(selected_language)
             if new_lang != lang:
                 st.session_state.system_language = new_lang
-                system_prompt = get_system_prompt(new_lang)
-                system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {new_lang} 언어로 제공되어야 합니다. 응답 언어를 {new_lang}로 유지하세요."
-                model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
+                model = create_model_for_language(new_lang)
                 # 채팅 히스토리는 보존하되, 언어 변경 메시지 추가
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -614,7 +642,7 @@ def show_chat_dashboard():
 
         user_input = st.chat_input(get_text("chat_input_placeholder", lang))
     
-    # 사용자 입력 처리 - 개선된 언어 감지 로직 및 응답 언어 처리 적용
+    # 사용자 입력 처리 - 개선된 언어 감지 로직 및 동적 모델 생성 적용
     if user_input:
         save_current_session()
         if not st.session_state.current_session_id:
@@ -624,24 +652,21 @@ def show_chat_dashboard():
         current_lang = st.session_state.system_language
         new_lang, should_switch = handle_language_switching(user_input, current_lang)
         
-        # 언어가 실제로 변경되었고 전환이 필요한 경우에만 처리
+        # 시스템 언어 전환 (UI 언어 변경)
         if should_switch:
-            logger.info(f"자동 언어 전환: {current_lang} -> {new_lang}")
+            logger.info(f"시스템 언어 자동 전환: {current_lang} -> {new_lang}")
             st.session_state.system_language = new_lang
-            
-            # 모델 재설정 (채팅 히스토리는 보존)
-            system_prompt = get_system_prompt(new_lang)
-            system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {new_lang} 언어로 제공되어야 합니다. 응답 언어를 {new_lang}로 유지하세요."
-            model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
-            
-            # 언어 변경 알림 (채팅 히스토리는 초기화하지 않음)
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": get_text("language_changed", new_lang)
             })
         
-        # 응답 언어 결정: 명시적 요청 > 시스템 언어
+        # 응답 언어 결정 (실제 대화 언어)
         response_language = detect_response_language(user_input, st.session_state.system_language)
+        logger.info(f"응답 언어 결정: {response_language}")
+        
+        # 응답 언어에 맞는 모델 생성
+        response_model = create_model_for_language(response_language)
         
         if get_usage_count() >= 100:
             st.error(get_text("daily_limit_exceeded", response_language))
@@ -724,9 +749,8 @@ def show_chat_dashboard():
                     if content.startswith("❌"):
                         response = content
                     else:
-                        chat_session = model.start_chat(history=st.session_state.chat_history)
+                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         pdf_source = pdf_url if pdf_url else (st.session_state.uploaded_pdf_file.name if has_uploaded_pdf else "")
-                        # 수정: response_language 사용
                         response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, response_language, pdf_source, sections)
                         st.session_state.chat_history = chat_session.history
                 elif is_youtube_request:
@@ -736,8 +760,7 @@ def show_chat_dashboard():
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
-                            # 수정: response_language 사용
-                            result = analyze_youtube_with_gemini(youtube_url, user_input, model, response_language)
+                            result = analyze_youtube_with_gemini(youtube_url, user_input, response_model, response_language)
                             if result["status"] == "success":
                                 import re
                                 def clean_markdown_headers(text):
@@ -768,26 +791,23 @@ def show_chat_dashboard():
                     if content.startswith("❌"):
                         response = content
                     else:
-                        chat_session = model.start_chat(history=st.session_state.chat_history)
-                        # 수정: response_language 사용
+                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         response = summarize_webpage_with_gemini_multiturn(content, metadata, user_input, chat_session, response_language, webpage_url)
                         st.session_state.chat_history = chat_session.history
                 elif is_image_analysis and has_images:
                     status.update(label=get_text("processing_image", response_language))
                     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
                     if all(img is not None for img in images):
-                        chat_session = model.start_chat(history=st.session_state.chat_history)
-                        # 수정: response_language 사용
+                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         response = analyze_image_with_gemini_multiturn(images, user_input, chat_session, response_language)
                         st.session_state.chat_history = chat_session.history
                     else:
                         response = "❌ 이미지 처리 중 오류가 발생했습니다."
                 else:
                     status.update(label=get_text("processing_response", response_language))
-                    chat_session = model.start_chat(history=st.session_state.chat_history)
+                    chat_session = response_model.start_chat(history=st.session_state.chat_history)
                     try:
-                        # 수정: response_language 사용
-                        response = chat_session.send_message(f"{user_input}\n\n※ 응답은 {response_language} 언어로 제공되어야 합니다.").text
+                        response = chat_session.send_message(user_input).text
                         st.session_state.chat_history = chat_session.history
                     except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
