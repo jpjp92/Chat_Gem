@@ -17,7 +17,7 @@ from config.style import GEMINI_CUSTOM_CSS
 # Set CSS for login page
 from config.logincss import TRENDY_LOGIN_CSS
 
-# Import lang module for multi-language support
+# Import lang module for multi-language support (개선된 함수들 포함)
 from config.lang import (
     get_text,
     get_language_options,
@@ -25,7 +25,12 @@ from config.lang import (
     get_welcome_message,
     get_lang_code_from_option,
     is_supported_language,
-    SUPPORTED_LANGUAGES
+    SUPPORTED_LANGUAGES,
+    # 개선된 언어 감지 함수들 추가
+    detect_language,
+    handle_language_switching,
+    detect_dominant_language,
+    get_usage_status_info
 )
 
 # Set prompts and functions for Gemini interactions
@@ -247,40 +252,7 @@ def increment_usage():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 1}
 
-def detect_language(text):
-    """텍스트에서 URL을 제외하고 언어 감지"""
-    url_pattern = r'https?://[^\s]+'
-    urls = re.findall(url_pattern, text)
-    for url in urls:
-        text = text.replace(url, '')
-    text = text.strip()
-    if not text:
-        return "ko"
-    
-    # 한글, 영어, 스페인어 특성 분석
-    korean_chars = sum(1 for char in text if '\uac00' <= char <= '\ud7af')
-    spanish_chars = sum(1 for char in text if char in 'ñáéíóúü¿¡')
-    total_chars = len(text.replace(' ', ''))
-    
-    if total_chars == 0:
-        return "ko"
-        
-    korean_ratio = korean_chars / total_chars
-    spanish_ratio = spanish_chars / total_chars
-    
-    # 추가: 스페인어 단어 패턴 체크 (간단한 접미사로 보조)
-    spanish_words = sum(1 for word in text.lower().split() if word.endswith(('o', 'a', 'es', 'as')) and len(word) > 2)
-    spanish_confidence = spanish_chars + (spanish_words * 0.1)  # 특수문자와 단어 패턴 결합
-    
-    # 한국어가 30% 이상이면 한국어
-    if korean_ratio > 0.3:
-        return "ko"
-    # 스페인어 특수문자 또는 단어 패턴이 있으면 스페인어
-    elif spanish_confidence / total_chars > 0.05:
-        return "es"
-    # 그 외는 영어로 판단
-    else:
-        return "en"
+# 기존 detect_language 함수 제거 - lang.py에서 import한 개선된 버전 사용
 
 def create_summary(text: str, target_length: int = 400) -> str:
     """글자수 기준 요약 생성 (최종 폴백용)"""
@@ -391,14 +363,14 @@ def show_chat_dashboard():
                 key="language_select"
             )
             
-            # 언어 변경 처리
+            # 언어 변경 처리 (수동 변경)
             new_lang = get_lang_code_from_option(selected_language)
             if new_lang != lang:
                 st.session_state.system_language = new_lang
                 system_prompt = get_system_prompt(new_lang)
                 system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {new_lang} 언어로 제공되어야 합니다. 응답 언어를 {new_lang}로 유지하세요."
                 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
-                st.session_state.chat_history = []
+                # 채팅 히스토리는 보존하되, 언어 변경 메시지 추가
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": get_text("language_changed", new_lang)
@@ -406,7 +378,6 @@ def show_chat_dashboard():
                 st.rerun()
         
         # 사용량 상태 표시 (다국어 적용)
-        from config.lang import get_usage_status_info
         with st.expander(get_text("today_usage", lang), expanded=True):
             usage_count = get_usage_count()
             usage_percentage = min(usage_count / 100, 1.0)
@@ -630,25 +601,37 @@ def show_chat_dashboard():
 
         user_input = st.chat_input(get_text("chat_input_placeholder", lang))
     
-    # 사용자 입력 처리
+    # 사용자 입력 처리 - 개선된 언어 감지 로직 적용
     if user_input:
         save_current_session()
         if not st.session_state.current_session_id:
             create_new_chat_session()
 
-        detected_lang = detect_language(user_input)
-        if detected_lang != st.session_state.system_language:
-            st.session_state.system_language = detected_lang
-            system_prompt = get_system_prompt(detected_lang)
-            system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {detected_lang} 언어로 제공되어야 합니다. 응답 언어를 {detected_lang}로 유지하세요."
+        # 개선된 언어 감지 및 전환 처리
+        current_lang = st.session_state.system_language
+        new_lang, should_switch = handle_language_switching(user_input, current_lang)
+        
+        # 언어가 실제로 변경되었고 전환이 필요한 경우에만 처리
+        if should_switch:
+            logger.info(f"자동 언어 전환: {current_lang} -> {new_lang}")
+            st.session_state.system_language = new_lang
+            
+            # 모델 재설정 (채팅 히스토리는 보존)
+            system_prompt = get_system_prompt(new_lang)
+            system_prompt_with_lang = f"{system_prompt}\n\n모든 응답은 {new_lang} 언어로 제공되어야 합니다. 응답 언어를 {new_lang}로 유지하세요."
             model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
+            
+            # 언어 변경 알림 (채팅 히스토리는 초기화하지 않음)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": get_text("language_changed", detected_lang)
+                "content": get_text("language_changed", new_lang)
             })
-
+        
+        # 현재 언어로 업데이트 (변경되지 않았으면 기존 언어 유지)
+        detected_lang = new_lang
+        
         if get_usage_count() >= 100:
-            st.error(get_text("daily_limit_exceeded", lang))
+            st.error(get_text("daily_limit_exceeded", detected_lang))
         else:
             increment_usage()
             # 이미지 처리
@@ -686,7 +669,7 @@ def show_chat_dashboard():
             if not st.session_state.messages:
                 st.session_state.messages.append({
                     "role": "assistant", 
-                    "content": get_welcome_message(lang)
+                    "content": get_welcome_message(detected_lang)
                 })
             
             # 메시지 추가 (이미지 데이터와 URL 모두 저장)
@@ -710,9 +693,9 @@ def show_chat_dashboard():
             has_images = len(st.session_state.uploaded_images) > 0
             is_image_analysis = is_image_analysis_request(user_input, has_images)
 
-            with st.status(get_text("processing", lang), expanded=True) as status:
+            with st.status(get_text("processing", detected_lang), expanded=True) as status:
                 if is_pdf_analysis:
-                    status.update(label=get_text("processing_pdf", lang))
+                    status.update(label=get_text("processing_pdf", detected_lang))
                     if has_uploaded_pdf and (not is_pdf_request or st.session_state.current_pdf_url != pdf_url):
                         pdf_file = st.session_state.uploaded_pdf_file
                         pdf_file.seek(0)
@@ -733,7 +716,7 @@ def show_chat_dashboard():
                         response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, pdf_source, sections)
                         st.session_state.chat_history = chat_session.history
                 elif is_youtube_request:
-                    status.update(label=get_text("processing_youtube", lang))
+                    status.update(label=get_text("processing_youtube", detected_lang))
                     try:
                         video_id = extract_video_id(youtube_url)
                         if not video_id:
@@ -759,7 +742,7 @@ def show_chat_dashboard():
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
                 elif is_webpage_request:
-                    status.update(label=get_text("processing_webpage", lang))
+                    status.update(label=get_text("processing_webpage", detected_lang))
                     if st.session_state.current_webpage_url != webpage_url:
                         st.session_state.current_webpage_url = webpage_url
                         content = fetch_webpage_content(webpage_url)
@@ -774,7 +757,7 @@ def show_chat_dashboard():
                         response = summarize_webpage_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, webpage_url)
                         st.session_state.chat_history = chat_session.history
                 elif is_image_analysis and has_images:
-                    status.update(label=get_text("processing_image", lang))
+                    status.update(label=get_text("processing_image", detected_lang))
                     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
                     if all(img is not None for img in images):
                         chat_session = model.start_chat(history=st.session_state.chat_history)
@@ -783,7 +766,7 @@ def show_chat_dashboard():
                     else:
                         response = "❌ 이미지 처리 중 오류가 발생했습니다."
                 else:
-                    status.update(label=get_text("processing_response", lang))
+                    status.update(label=get_text("processing_response", detected_lang))
                     chat_session = model.start_chat(history=st.session_state.chat_history)
                     try:
                         response = chat_session.send_message(f"{user_input}\n\n※ 응답은 {detected_lang} 언어로 제공되어야 합니다.").text
@@ -791,7 +774,7 @@ def show_chat_dashboard():
                     except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
                         response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
-                status.update(label=get_text("processing_complete", lang), state="complete")
+                status.update(label=get_text("processing_complete", detected_lang), state="complete")
 
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.uploaded_images = []
