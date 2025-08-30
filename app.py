@@ -252,7 +252,20 @@ def increment_usage():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         st.session_state.usage_data = {"date": today, "count": 1}
 
-# 기존 detect_language 함수 제거 - lang.py에서 import한 개선된 버전 사용
+def detect_response_language(user_input: str, system_language: str) -> str:
+    """사용자 입력에서 응답 언어를 감지합니다"""
+    user_input_lower = user_input.lower()
+    
+    # 명시적 언어 요청 감지
+    if any(phrase in user_input_lower for phrase in ["한국어로", "in korean", "en coreano"]):
+        return "ko"
+    elif any(phrase in user_input_lower for phrase in ["in english", "영어로", "en inglés"]):
+        return "en"  
+    elif any(phrase in user_input_lower for phrase in ["in spanish", "스페인어로", "en español"]):
+        return "es"
+    
+    # 명시적 요청이 없으면 시스템 언어 사용
+    return system_language
 
 def create_summary(text: str, target_length: int = 400) -> str:
     """글자수 기준 요약 생성 (최종 폴백용)"""
@@ -601,7 +614,7 @@ def show_chat_dashboard():
 
         user_input = st.chat_input(get_text("chat_input_placeholder", lang))
     
-    # 사용자 입력 처리 - 개선된 언어 감지 로직 적용
+    # 사용자 입력 처리 - 개선된 언어 감지 로직 및 응답 언어 처리 적용
     if user_input:
         save_current_session()
         if not st.session_state.current_session_id:
@@ -627,11 +640,11 @@ def show_chat_dashboard():
                 "content": get_text("language_changed", new_lang)
             })
         
-        # 현재 언어로 업데이트 (변경되지 않았으면 기존 언어 유지)
-        detected_lang = new_lang
+        # 응답 언어 결정: 명시적 요청 > 시스템 언어
+        response_language = detect_response_language(user_input, st.session_state.system_language)
         
         if get_usage_count() >= 100:
-            st.error(get_text("daily_limit_exceeded", detected_lang))
+            st.error(get_text("daily_limit_exceeded", response_language))
         else:
             increment_usage()
             # 이미지 처리
@@ -669,7 +682,7 @@ def show_chat_dashboard():
             if not st.session_state.messages:
                 st.session_state.messages.append({
                     "role": "assistant", 
-                    "content": get_welcome_message(detected_lang)
+                    "content": get_welcome_message(response_language)
                 })
             
             # 메시지 추가 (이미지 데이터와 URL 모두 저장)
@@ -693,9 +706,9 @@ def show_chat_dashboard():
             has_images = len(st.session_state.uploaded_images) > 0
             is_image_analysis = is_image_analysis_request(user_input, has_images)
 
-            with st.status(get_text("processing", detected_lang), expanded=True) as status:
+            with st.status(get_text("processing", response_language), expanded=True) as status:
                 if is_pdf_analysis:
-                    status.update(label=get_text("processing_pdf", detected_lang))
+                    status.update(label=get_text("processing_pdf", response_language))
                     if has_uploaded_pdf and (not is_pdf_request or st.session_state.current_pdf_url != pdf_url):
                         pdf_file = st.session_state.uploaded_pdf_file
                         pdf_file.seek(0)
@@ -713,16 +726,18 @@ def show_chat_dashboard():
                     else:
                         chat_session = model.start_chat(history=st.session_state.chat_history)
                         pdf_source = pdf_url if pdf_url else (st.session_state.uploaded_pdf_file.name if has_uploaded_pdf else "")
-                        response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, pdf_source, sections)
+                        # 수정: response_language 사용
+                        response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, response_language, pdf_source, sections)
                         st.session_state.chat_history = chat_session.history
                 elif is_youtube_request:
-                    status.update(label=get_text("processing_youtube", detected_lang))
+                    status.update(label=get_text("processing_youtube", response_language))
                     try:
                         video_id = extract_video_id(youtube_url)
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
-                            result = analyze_youtube_with_gemini(youtube_url, user_input, model, detected_lang)
+                            # 수정: response_language 사용
+                            result = analyze_youtube_with_gemini(youtube_url, user_input, model, response_language)
                             if result["status"] == "success":
                                 import re
                                 def clean_markdown_headers(text):
@@ -742,7 +757,7 @@ def show_chat_dashboard():
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
                 elif is_webpage_request:
-                    status.update(label=get_text("processing_webpage", detected_lang))
+                    status.update(label=get_text("processing_webpage", response_language))
                     if st.session_state.current_webpage_url != webpage_url:
                         st.session_state.current_webpage_url = webpage_url
                         content = fetch_webpage_content(webpage_url)
@@ -754,27 +769,30 @@ def show_chat_dashboard():
                         response = content
                     else:
                         chat_session = model.start_chat(history=st.session_state.chat_history)
-                        response = summarize_webpage_with_gemini_multiturn(content, metadata, user_input, chat_session, detected_lang, webpage_url)
+                        # 수정: response_language 사용
+                        response = summarize_webpage_with_gemini_multiturn(content, metadata, user_input, chat_session, response_language, webpage_url)
                         st.session_state.chat_history = chat_session.history
                 elif is_image_analysis and has_images:
-                    status.update(label=get_text("processing_image", detected_lang))
+                    status.update(label=get_text("processing_image", response_language))
                     images = [process_image_for_gemini(img) for img in st.session_state.uploaded_images]
                     if all(img is not None for img in images):
                         chat_session = model.start_chat(history=st.session_state.chat_history)
-                        response = analyze_image_with_gemini_multiturn(images, user_input, chat_session, detected_lang)
+                        # 수정: response_language 사용
+                        response = analyze_image_with_gemini_multiturn(images, user_input, chat_session, response_language)
                         st.session_state.chat_history = chat_session.history
                     else:
                         response = "❌ 이미지 처리 중 오류가 발생했습니다."
                 else:
-                    status.update(label=get_text("processing_response", detected_lang))
+                    status.update(label=get_text("processing_response", response_language))
                     chat_session = model.start_chat(history=st.session_state.chat_history)
                     try:
-                        response = chat_session.send_message(f"{user_input}\n\n※ 응답은 {detected_lang} 언어로 제공되어야 합니다.").text
+                        # 수정: response_language 사용
+                        response = chat_session.send_message(f"{user_input}\n\n※ 응답은 {response_language} 언어로 제공되어야 합니다.").text
                         st.session_state.chat_history = chat_session.history
                     except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
                         response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
-                status.update(label=get_text("processing_complete", detected_lang), state="complete")
+                status.update(label=get_text("processing_complete", response_language), state="complete")
 
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.uploaded_images = []
