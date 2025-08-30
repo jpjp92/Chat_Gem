@@ -207,7 +207,7 @@ def validate_pdf_file(uploaded_file):
     
     if uploaded_file.type != 'application/pdf':
         return False, get_text("unsupported_pdf_format", lang)
-    max_size = 10 * 1024 * 1024  # 10MB
+    max_size = 30 * 1024 * 1024  # 30MB
     if uploaded_file.size > max_size:
         return False, get_text("pdf_too_large", lang, size=uploaded_file.size / (1024*1024))
     return True, get_text("valid_pdf", lang)
