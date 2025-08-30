@@ -121,10 +121,109 @@ Format:
 def analyze_image_with_gemini_multiturn(images, user_input, chat_session, detected_lang="ko"):
     """이미지 분석을 기존 채팅 세션에 연결하여 멀티턴 대화 지원"""
     try:
-        content = [user_input]
+        system_prompt = get_system_prompt(detected_lang)
+        
+        # 분석 요청인지 확인
+        is_analysis_request = any(keyword in user_input.lower() for keyword in 
+                                 ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', 
+                                  'analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell me'])
+        
+        if detected_lang == "ko":
+            if is_analysis_request:
+                prompt = f"""{system_prompt}
+
+다음 이미지들을 한국어로 전문적으로 분석해주세요.
+
+사용자 질문: {user_input}
+
+분석 지침:
+1. 각 이미지의 주요 요소들을 설명
+2. 색상, 구도, 스타일 등의 시각적 특징
+3. 텍스트가 있다면 읽어서 내용 설명
+4. 사용자의 특정 질문이 있다면 그에 맞춰 분석
+5. 이모지를 적절히 사용하여 가독성 향상
+6. 반드시 한국어로만 답변하세요
+
+형식:
+📸 **이미지 분석 결과**
+
+🔍 **주요 요소**:
+- 이미지 1: ...
+- 이미지 2: ...
+
+🎨 **시각적 특징**:
+- 색상, 구도, 스타일 등
+
+📝 **텍스트 내용** (있는 경우):
+- 읽힌 텍스트 내용
+
+💡 **추가 분석**:
+- 특별한 관찰사항이나 인사이트"""
+            else:
+                prompt = f"""{system_prompt}
+
+다음 이미지들을 바탕으로 사용자 질문에 한국어로 답변해주세요.
+
+사용자 질문: {user_input}
+
+지침:
+1. 이미지 내용을 기반으로 사용자의 질문에 답변
+2. 구체적인 시각적 증거나 내용을 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 답변
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요"""
+        else:
+            # 영어 버전
+            if is_analysis_request:
+                prompt = f"""{system_prompt}
+
+Please analyze the following images professionally in English.
+
+User Query: {user_input}
+
+Analysis Guidelines:
+1. Describe the main elements visible in each image
+2. Include visual features such as colors, composition, style
+3. If there's text, read and describe the content
+4. Focus on user's specific question if provided
+5. Use appropriate emojis for readability
+6. Respond only in English
+
+Format:
+📸 **Image Analysis Result**
+
+🔍 **Main Elements**:
+- Image 1: ...
+- Image 2: ...
+
+🎨 **Visual Features**:
+- Colors, composition, style, etc.
+
+📝 **Text Content** (if any):
+- Transcribed text content
+
+💡 **Additional Analysis**:
+- Special observations or insights"""
+            else:
+                prompt = f"""{system_prompt}
+
+Please respond to the user's query based on the following images.
+
+User Query: {user_input}
+
+Guidelines:
+1. Answer based on the image content
+2. Include specific visual evidence or details
+3. Address the user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English"""
+        
+        # 프롬프트와 이미지 결합
+        content = [prompt]
         for image in images:
             if image is not None:
                 content.append(image)
+                
         response = chat_session.send_message(content)
         return response.text
     except Exception as e:
