@@ -318,7 +318,7 @@ def show_chat_dashboard():
             get_text("new_chat", lang), 
             key="new_chat", 
             help=get_text("new_chat_help", lang), 
-            width=True
+            use_container_width=True
         ):
             create_new_chat_session()
             st.rerun()
@@ -422,7 +422,7 @@ def show_chat_dashboard():
                     get_text("export", lang), 
                     key="export_quick", 
                     help=get_text("export_help", lang), 
-                    width=True
+                    use_container_width=True
                 ):
                     try:
                         export_data = export_chat_session()
@@ -433,7 +433,7 @@ def show_chat_dashboard():
                                 file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json",
                                 mime="application/json",
                                 key="download_json",
-                                width=True
+                                use_container_width=True
                             )
                         else:
                             st.error(get_text("no_export_data", lang))
@@ -444,7 +444,7 @@ def show_chat_dashboard():
                     get_text("delete_all", lang), 
                     key="clear_all", 
                     help=get_text("delete_all_help", lang), 
-                    width=True
+                    use_container_width=True
                 ):
                     if st.session_state.chat_sessions:
                         st.markdown("---")
@@ -452,13 +452,13 @@ def show_chat_dashboard():
                         if confirm:
                             col_yes, col_no = st.columns(2)
                             with col_yes:
-                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary", width=True):
+                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary", use_container_width=True):
                                     st.session_state.chat_sessions = []
                                     create_new_chat_session()
                                     st.success(get_text("all_chats_deleted", lang))
                                     st.rerun()
                             with col_no:
-                                if st.button(get_text("confirm_no", lang), key="cancel_clear", width=True):
+                                if st.button(get_text("confirm_no", lang), key="cancel_clear", use_container_width=True):
                                     st.session_state.confirm_delete_checkbox = False
                                     st.rerun()
 
@@ -489,7 +489,7 @@ def show_chat_dashboard():
                 get_text("example_webpage", lang), 
                 key="example_webpage", 
                 help=get_text("example_webpage_help", lang), 
-                width=True
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["webpage"]
         with col2:
@@ -497,7 +497,7 @@ def show_chat_dashboard():
                 get_text("example_youtube", lang), 
                 key="example_youtube", 
                 help=get_text("example_youtube_help", lang), 
-                width=True
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["youtube"]
         with col3:
@@ -505,7 +505,7 @@ def show_chat_dashboard():
                 get_text("example_pdf", lang), 
                 key="example_pdf", 
                 help=get_text("example_pdf_help", lang), 
-                width=True
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["pdf"]
         with col4:
@@ -513,7 +513,7 @@ def show_chat_dashboard():
                 get_text("example_image", lang), 
                 key="example_image", 
                 help=get_text("example_image_help", lang), 
-                width=True
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["image"]
         with col5:
@@ -521,7 +521,7 @@ def show_chat_dashboard():
                 get_text("example_chat", lang), 
                 key="example_chat", 
                 help=get_text("example_chat_help", lang), 
-                width=True
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["chat"]
         
@@ -543,11 +543,11 @@ def show_chat_dashboard():
                             try:
                                 if isinstance(img_data, str):
                                     # URL인 경우 직접 표시
-                                    st.image(img_data, caption=f"이미지 {idx+1}", width=True)
+                                    st.image(img_data, caption=f"이미지 {idx+1}", use_container_width=True)
                                 else:
                                     # 바이너리 데이터인 경우
                                     img = Image.open(io.BytesIO(img_data))
-                                    st.image(img, caption=f"이미지 {idx+1}", width=True)
+                                    st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
                             except Exception as e:
                                 st.error(f"이미지 로드 실패: {str(e)}")
             if st.button("전체 대화 보기"):
@@ -564,11 +564,11 @@ def show_chat_dashboard():
                                 try:
                                     if isinstance(img_data, str):
                                         # URL인 경우 직접 표시
-                                        st.image(img_data, caption=f"이미지 {idx+1}", width=True)
+                                        st.image(img_data, caption=f"이미지 {idx+1}", use_container_width=True)
                                     else:
                                         # 바이너리 데이터인 경우
                                         img = Image.open(io.BytesIO(img_data))
-                                        st.image(img, caption=f"이미지 {idx+1}", width=True)
+                                        st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
                                 except Exception as e:
                                     st.error(f"이미지 로드 실패: {str(e)}")
 
@@ -589,7 +589,7 @@ def show_chat_dashboard():
                 for idx, img_file in enumerate(uploaded_images):
                     with cols[idx % 4]:
                         img = Image.open(img_file)
-                        st.image(img, caption=f"이미지 {idx+1}", width=True)
+                        st.image(img, caption=f"이미지 {idx+1}", use_container_width=True)
             
             uploaded_pdf = st.file_uploader(
                 get_text("upload_pdf", lang),
