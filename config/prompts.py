@@ -132,8 +132,8 @@ def analyze_image_with_gemini_multiturn(images, user_input, chat_session, detect
         error_msg = "이미지 분석 중 오류가 발생했습니다." if detected_lang == "ko" else "An error occurred during image analysis."
         return error_msg
 
-def analyze_youtube_with_gemini_multiturn(transcript, metadata, user_query, chat_session, detected_lang="ko", youtube_url=""):
-    """유튜브 영상을 기존 채팅 세션에 연결하여 멀티턴 대화로 분석 또는 요약"""
+def analyze_youtube_with_gemini_multiturn(youtube_url, user_query, chat_session, detected_lang="ko"):
+    """유튜브 영상을 한 번의 API 호출로 모든 처리"""
     try:
         system_prompt = get_system_prompt(detected_lang)
         
@@ -142,107 +142,89 @@ def analyze_youtube_with_gemini_multiturn(transcript, metadata, user_query, chat
         
         if detected_lang == "ko":
             if is_summary_request:
-                prompt = f"""{system_prompt}
+                prompt = f"""이 YouTube 영상을 한국어로 전문적으로 분석해주세요.
 
-다음 유튜브 영상의 내용을 한국어로 요약해주세요.
+사용자 요청: {user_query}
 
-영상 URL: {youtube_url}
-제목: {metadata.get("title", "Unknown")}
-채널: {metadata.get("channel", "Unknown")}
+다음 형식으로 답변해주세요:
 
-영상 내용: {transcript}
-
-사용자 질문: {user_query}
-
-요약 지침:
-1. 주요 내용을 5개 포인트로 정리
-2. 중요한 정보나 핵심 메시지 포함
-3. 사용자가 특정 질문이 있다면 그에 맞춰 요약
-4. 이모지를 적절히 사용하여 가독성 향상
-5. 반드시 한국어로만 답변하세요
-
-형식:
-📹 **유튜브 영상 요약**
-
-🔗 **출처**: [{metadata.get("title", "Unknown")}]({youtube_url})
-📺 **채널**: {metadata.get("channel", "Unknown")}
+📹 **유튜브 영상 분석**
 
 📝 **주요 내용**:
-- 포인트 1
-- 포인트 2
-- ...
+- 핵심 포인트 1
+- 핵심 포인트 2
+- 핵심 포인트 3
+- 핵심 포인트 4
+- 핵심 포인트 5
 
-💡 **핵심**: 주요 메시지나 결론"""
+🎯 **핵심 메시지**: 
+영상의 가장 중요한 메시지나 결론
+
+💡 **주요 인사이트**:
+특별히 주목할 만한 내용이나 새로운 정보
+
+🔗 **출처**: {youtube_url}
+
+반드시 한국어로만 답변하세요."""
             else:
-                prompt = f"""{system_prompt}
-
-다음 유튜브 영상 내용을 바탕으로 사용자 질문에 답변해주세요.
-
-제목: {metadata.get("title", "Unknown")}
-채널: {metadata.get("channel", "Unknown")}
-영상 내용: {transcript}
+                prompt = f"""이 YouTube 영상 내용을 바탕으로 사용자 질문에 한국어로 답변해주세요.
 
 사용자 질문: {user_query}
 
-지침:
-1. 영상 내용을 기반으로 사용자의 질문에 답변
-2. 주요 정보나 핵심 내용을 포함
-3. 사용자가 특정 질문이 있다면 그에 맞춰 답변
-4. 이모지를 적절히 사용하여 가독성 향상
-5. 반드시 한국어로만 답변하세요"""
+답변 지침:
+- 영상 내용을 기반으로 정확한 답변
+- 구체적인 예시나 데이터 포함
+- 실용적인 조언이나 인사이트 제공
+- 반드시 한국어로만 답변하세요"""
         else:
-            # 영어 버전 (기본값)
+            # 영어 버전
             if is_summary_request:
-                prompt = f"""{system_prompt}
+                prompt = f"""Please analyze this YouTube video professionally in English.
 
-Please summarize the following YouTube video content in English.
+User Request: {user_query}
 
-Video URL: {youtube_url}
-Title: {metadata.get("title", "Unknown")}
-Channel: {metadata.get("channel", "Unknown")}
+Please respond in the following format:
 
-Video Content: {transcript}
-
-User Query: {user_query}
-
-Summary Guidelines:
-1. Organize main points into 5 key bullets
-2. Include important information or key messages
-3. Focus on user's specific question if provided
-4. Use appropriate emojis for readability
-5. Respond only in English
-
-Format:
-📹 **YouTube Video Summary**
-
-🔗 **Source**: [{metadata.get("title", "Unknown")}]({youtube_url})
-📺 **Channel**: {metadata.get("channel", "Unknown")}
+📹 **YouTube Video Analysis**
 
 📝 **Key Points**:
-- Point 1
-- Point 2
-- ...
+- Key point 1
+- Key point 2
+- Key point 3
+- Key point 4
+- Key point 5
 
-💡 **Key Insight**: Main message or conclusion"""
+🎯 **Core Message**: 
+The most important message or conclusion of the video
+
+💡 **Key Insights**:
+Particularly noteworthy content or new information
+
+🔗 **Source**: {youtube_url}
+
+Respond only in English."""
             else:
-                prompt = f"""{system_prompt}
+                prompt = f"""Based on this YouTube video, please answer the following question in English:
 
-Please respond to the user's query based on the following YouTube video content.
-
-Title: {metadata.get("title", "Unknown")}
-Channel: {metadata.get("channel", "Unknown")}
-Video Content: {transcript}
-
-User Query: {user_query}
+Question: {user_query}
 
 Guidelines:
-1. Answer based on the video content
-2. Include key information or main points
-3. Address the user's specific question if provided
-4. Use appropriate emojis for readability
-5. Respond only in English"""
+- Accurate answer based on video content
+- Include specific examples or data mentioned
+- Provide practical advice or insights
+- Respond only in English"""
+
+        # 한 번의 API 호출로 모든 처리
+        response = chat_session.send_message([
+            {
+                "file_data": {
+                    "file_uri": youtube_url,
+                    "mime_type": "video/youtube"
+                }
+            },
+            {"text": prompt}
+        ])
         
-        response = chat_session.send_message(prompt)
         return response.text
     except Exception as e:
         logger.error(f"유튜브 분석 오류: {e}")

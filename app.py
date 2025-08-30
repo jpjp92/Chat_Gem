@@ -754,6 +754,7 @@ def show_chat_dashboard():
                         pdf_source = pdf_url if pdf_url else (st.session_state.uploaded_pdf_file.name if has_uploaded_pdf else "")
                         response = analyze_pdf_with_gemini_multiturn(content, metadata, user_input, chat_session, response_language, pdf_source, sections)
                         st.session_state.chat_history = chat_session.history
+                        
                 elif is_youtube_request:
                     status.update(label=get_text("processing_youtube", response_language))
                     try:
@@ -761,23 +762,15 @@ def show_chat_dashboard():
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
-                            # utils 함수로 transcript, metadata, summary(선택적) 가져오기
-                            result = analyze_youtube_with_gemini(youtube_url, user_input, response_model, response_language)
-                            
-                            if result["status"] == "success":
-                                # 멀티턴 세션에서 추가 분석/질답 수행
-                                chat_session = response_model.start_chat(history=st.session_state.chat_history)
-                                response = analyze_youtube_with_gemini_multiturn(
-                                    result['transcript'],  # 이제 사용 가능
-                                    result['metadata'],    # 이제 사용 가능
-                                    user_input, 
-                                    chat_session, 
-                                    response_language, 
-                                    youtube_url
-                                )
-                                st.session_state.chat_history = chat_session.history
-                            else:
-                                response = f"❌ 비디오 처리 실패: {result['error']}"
+                            # 멀티턴에서 한 번에 모든 처리
+                            chat_session = response_model.start_chat(history=st.session_state.chat_history)
+                            response = analyze_youtube_with_gemini_multiturn(
+                                youtube_url,  # URL 직접 전달
+                                user_input, 
+                                chat_session, 
+                                response_language
+                            )
+                            st.session_state.chat_history = chat_session.history
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
