@@ -256,7 +256,7 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     """사용자 입력에서 응답 언어를 감지합니다"""
     user_input_lower = user_input.lower()
     
-    # 명시적 언어 요청 감지
+    # 1. 명시적 언어 요청 감지 (최우선)
     if any(phrase in user_input_lower for phrase in ["한국어로", "in korean", "en coreano"]):
         return "ko"
     elif any(phrase in user_input_lower for phrase in ["in english", "영어로", "en inglés"]):
@@ -264,7 +264,14 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     elif any(phrase in user_input_lower for phrase in ["in spanish", "스페인어로", "en español"]):
         return "es"
     
-    # 명시적 요청이 없으면 시스템 언어 사용
+    # 2. 첫 대화이거나 명시적 요청이 없는 경우: 입력 언어 감지
+    detected_lang, confidence = detect_dominant_language(user_input, system_language)
+    
+    # 3. 감지된 언어가 다르고 어느 정도 신뢰도가 있으면 해당 언어로 응답
+    if detected_lang != system_language and confidence >= 0.4:  # 임계값 완화 (0.7 → 0.4)
+        return detected_lang
+    
+    # 4. 그 외의 경우: 시스템 언어 사용
     return system_language
 
 def create_summary(text: str, target_length: int = 400) -> str:
