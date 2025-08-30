@@ -37,6 +37,7 @@ from config.lang import (
 from config.prompts import (
     get_system_prompt,
     analyze_image_with_gemini_multiturn,
+    analyze_youtube_with_gemini_multiturn,
     summarize_webpage_with_gemini,
     analyze_pdf_with_gemini_multiturn,
     summarize_webpage_with_gemini_multiturn,
@@ -760,20 +761,24 @@ def show_chat_dashboard():
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
+                            # 먼저 유튜브 컨텐츠를 가져옴 (utils 함수 사용)
                             result = analyze_youtube_with_gemini(youtube_url, user_input, response_model, response_language)
                             if result["status"] == "success":
-                                import re
-                                def clean_markdown_headers(text):
-                                    text = re.sub(r'#+\s*', '', text)
-                                    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-                                    text = re.sub(r'<.*?>', '', text)
-                                    return text
-                                summary_clean = clean_markdown_headers(result['summary'])
-                                response = (
-                                    f"📹 비디오 URL: [{youtube_url}]({youtube_url})\n\n"
-                                    f"📄 요약 내용:\n\n{'-' * 30}\n{summary_clean}\n{'-' * 30}\n"
-                                    f"⏱️ 처리 시간: {result['processing_time']}초"
+                                # 멀티턴 대화를 위한 chat_session 생성
+                                chat_session = response_model.start_chat(history=st.session_state.chat_history)
+                                
+                                # 멀티턴 함수로 처리
+                                response = analyze_youtube_with_gemini_multiturn(
+                                    result.get('transcript', ''), 
+                                    result.get('metadata', {}), 
+                                    user_input, 
+                                    chat_session, 
+                                    response_language, 
+                                    youtube_url
                                 )
+                                
+                                # chat_history 업데이트
+                                st.session_state.chat_history = chat_session.history
                             else:
                                 response = f"❌ 비디오 요약 실패: {result['error']}"
                     except Exception as e:

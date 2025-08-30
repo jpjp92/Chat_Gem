@@ -132,6 +132,123 @@ def analyze_image_with_gemini_multiturn(images, user_input, chat_session, detect
         error_msg = "이미지 분석 중 오류가 발생했습니다." if detected_lang == "ko" else "An error occurred during image analysis."
         return error_msg
 
+def analyze_youtube_with_gemini_multiturn(transcript, metadata, user_query, chat_session, detected_lang="ko", youtube_url=""):
+    """유튜브 영상을 기존 채팅 세션에 연결하여 멀티턴 대화로 분석 또는 요약"""
+    try:
+        system_prompt = get_system_prompt(detected_lang)
+        
+        # 요약 요청인지 확인
+        is_summary_request = any(keyword in user_query.lower() for keyword in ['요약', '정리', 'summary', 'summarize'])
+        
+        if detected_lang == "ko":
+            if is_summary_request:
+                prompt = f"""{system_prompt}
+
+다음 유튜브 영상의 내용을 한국어로 요약해주세요.
+
+영상 URL: {youtube_url}
+제목: {metadata.get("title", "Unknown")}
+채널: {metadata.get("channel", "Unknown")}
+
+영상 내용: {transcript}
+
+사용자 질문: {user_query}
+
+요약 지침:
+1. 주요 내용을 5개 포인트로 정리
+2. 중요한 정보나 핵심 메시지 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 요약
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요
+
+형식:
+📹 **유튜브 영상 요약**
+
+🔗 **출처**: [{metadata.get("title", "Unknown")}]({youtube_url})
+📺 **채널**: {metadata.get("channel", "Unknown")}
+
+📝 **주요 내용**:
+- 포인트 1
+- 포인트 2
+- ...
+
+💡 **핵심**: 주요 메시지나 결론"""
+            else:
+                prompt = f"""{system_prompt}
+
+다음 유튜브 영상 내용을 바탕으로 사용자 질문에 답변해주세요.
+
+제목: {metadata.get("title", "Unknown")}
+채널: {metadata.get("channel", "Unknown")}
+영상 내용: {transcript}
+
+사용자 질문: {user_query}
+
+지침:
+1. 영상 내용을 기반으로 사용자의 질문에 답변
+2. 주요 정보나 핵심 내용을 포함
+3. 사용자가 특정 질문이 있다면 그에 맞춰 답변
+4. 이모지를 적절히 사용하여 가독성 향상
+5. 반드시 한국어로만 답변하세요"""
+        else:
+            # 영어 버전 (기본값)
+            if is_summary_request:
+                prompt = f"""{system_prompt}
+
+Please summarize the following YouTube video content in English.
+
+Video URL: {youtube_url}
+Title: {metadata.get("title", "Unknown")}
+Channel: {metadata.get("channel", "Unknown")}
+
+Video Content: {transcript}
+
+User Query: {user_query}
+
+Summary Guidelines:
+1. Organize main points into 5 key bullets
+2. Include important information or key messages
+3. Focus on user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English
+
+Format:
+📹 **YouTube Video Summary**
+
+🔗 **Source**: [{metadata.get("title", "Unknown")}]({youtube_url})
+📺 **Channel**: {metadata.get("channel", "Unknown")}
+
+📝 **Key Points**:
+- Point 1
+- Point 2
+- ...
+
+💡 **Key Insight**: Main message or conclusion"""
+            else:
+                prompt = f"""{system_prompt}
+
+Please respond to the user's query based on the following YouTube video content.
+
+Title: {metadata.get("title", "Unknown")}
+Channel: {metadata.get("channel", "Unknown")}
+Video Content: {transcript}
+
+User Query: {user_query}
+
+Guidelines:
+1. Answer based on the video content
+2. Include key information or main points
+3. Address the user's specific question if provided
+4. Use appropriate emojis for readability
+5. Respond only in English"""
+        
+        response = chat_session.send_message(prompt)
+        return response.text
+    except Exception as e:
+        logger.error(f"유튜브 분석 오류: {e}")
+        return "유튜브 영상 분석 중 오류가 발생했습니다." if detected_lang == "ko" else "An error occurred during YouTube analysis."
+
+
 def summarize_webpage_with_gemini(url, user_query, model, detected_lang):
     """웹페이지 내용을 Gemini로 요약"""
     try:
