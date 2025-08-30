@@ -425,10 +425,34 @@ def analyze_language_composition(text: str) -> Dict[str, float]:
     if total_words == 0:
         return {"ko": korean_ratio, "en": 0, "es": 0}
     
-    # 스페인어 단어 패턴 (더 정교하게)
+    # 스페인어 단어 패턴 (대폭 개선)
     spanish_patterns = [
-        r'[a-zA-Z]*[ñáéíóúü][a-zA-Z]*',  # 스페인어 특수문자 포함 단어
-        r'\b(el|la|los|las|un|una|y|de|en|por|para|con|sin|que|es|son|está|están|hola|como|qué|dónde|cuándo|por favor|gracias|adiós)\b'
+        # 스페인어 특수문자 포함 단어
+        r'[a-zA-Z]*[ñáéíóúü][a-zA-Z]*',  
+        
+        # 기본 관사, 전치사, 접속사
+        r'\b(el|la|los|las|un|una|del|al|y|o|de|en|por|para|con|sin|que|se|te|me|le|lo|su|mi|tu)\b',
+        
+        # 동사 (be동사, 일반동사)
+        r'\b(es|son|está|están|ser|estar|tiene|tengo|hay|va|voy|fue|era|dice|dijo|hace|hizo|puede|quiere|sabe|conoce)\b',
+        
+        # 형용사 (중요한 buenos, buenas 포함)
+        r'\b(bueno|buena|buenos|buenas|malo|mala|malos|malas|grande|grandes|pequeño|pequeña|nuevo|nueva|viejo|vieja|mejor|peor)\b',
+        
+        # 시간 관련 (핵심: días, tardes, noches)
+        r'\b(días|día|tardes|tarde|noches|noche|mañana|mañanas|hoy|ayer|tiempo|año|años)\b',
+        
+        # 인사말 및 정중 표현
+        r'\b(hola|adiós|gracias|por\s+favor|disculpe|perdón|lo\s+siento|de\s+nada)\b',
+        
+        # 의문사 및 기본 대화
+        r'\b(qué|quién|quiénes|dónde|cuándo|cómo|por\s+qué|cuánto|cuánta|cuántos|cuántas|cuál|cuáles)\b',
+        
+        # 기본 부사/형용사
+        r'\b(muy|más|menos|bien|mal|sí|no|también|siempre|nunca|aquí|allí|donde)\b',
+        
+        # 일반 명사
+        r'\b(casa|trabajo|persona|personas|gente|hombre|mujer|niño|niña|agua|comida|dinero)\b'
     ]
     
     spanish_word_count = 0
@@ -441,16 +465,36 @@ def analyze_language_composition(text: str) -> Dict[str, float]:
     spanish_char_ratio = spanish_special_chars / total_chars
     spanish_total_score = max(spanish_word_ratio * 0.7 + spanish_char_ratio * 0.3, spanish_char_ratio)
     
-    # 영어 단어 패턴
+    # 영어 단어 패턴 (개선)
     english_patterns = [
-        r'\b(the|and|or|is|are|was|were|have|has|had|will|would|can|could|should|must|may|might|do|does|did|get|got|make|made|take|took|go|went|come|came|see|saw|know|knew|think|thought|say|said|tell|told|give|gave|find|found|help|want|need|like|love|good|bad|big|small|new|old|first|last|long|short|high|low|early|late|fast|slow|hot|cold|yes|no|please|thank|you|hello|goodbye|how|what|when|where|why|who|which)\b'
+        # 기본 관사, 전치사, 접속사
+        r'\b(the|a|an|and|or|but|if|when|where|how|what|who|which|that|this|these|those)\b',
+        
+        # be동사, 조동사, 일반동사
+        r'\b(is|are|was|were|be|been|being|have|has|had|will|would|can|could|should|must|may|might)\b',
+        r'\b(do|does|did|get|got|make|made|take|took|go|went|come|came|see|saw|know|knew)\b',
+        r'\b(think|thought|say|said|tell|told|give|gave|find|found|help|want|need|like|love)\b',
+        
+        # 형용사
+        r'\b(good|bad|big|small|new|old|first|last|long|short|high|low|early|late|fast|slow|hot|cold)\b',
+        
+        # 인사말, 정중표현
+        r'\b(hello|hi|goodbye|bye|please|thank|you|thanks|sorry|excuse|welcome)\b',
+        
+        # 기본 부사
+        r'\b(yes|no|not|very|much|more|less|well|here|there|now|then|always|never)\b',
+        
+        # 일반 명사
+        r'\b(time|day|year|work|home|people|person|man|woman|child|water|food|money)\b'
     ]
     
     english_word_count = 0
     for word in words:
         word_lower = word.lower()
-        if any(re.search(pattern, word_lower) for pattern in english_patterns) and not re.search(r'[가-힣ñáéíóúü]', word):
-            english_word_count += 1
+        # 한글이나 스페인어 특수문자가 포함된 단어는 제외
+        if not re.search(r'[가-힣ñáéíóúü]', word):
+            if any(re.search(pattern, word_lower) for pattern in english_patterns):
+                english_word_count += 1
     
     english_ratio = english_word_count / total_words
     
