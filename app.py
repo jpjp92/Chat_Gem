@@ -761,29 +761,27 @@ def show_chat_dashboard():
                         if not video_id:
                             response = "⚠️ 유효하지 않은 YouTube URL입니다."
                         else:
-                            # 먼저 유튜브 컨텐츠를 가져옴 (utils 함수 사용)
+                            # utils 함수로 transcript, metadata, summary(선택적) 가져오기
                             result = analyze_youtube_with_gemini(youtube_url, user_input, response_model, response_language)
+                            
                             if result["status"] == "success":
-                                # 멀티턴 대화를 위한 chat_session 생성
+                                # 멀티턴 세션에서 추가 분석/질답 수행
                                 chat_session = response_model.start_chat(history=st.session_state.chat_history)
-                                
-                                # 멀티턴 함수로 처리
                                 response = analyze_youtube_with_gemini_multiturn(
-                                    result.get('transcript', ''), 
-                                    result.get('metadata', {}), 
+                                    result['transcript'],  # 이제 사용 가능
+                                    result['metadata'],    # 이제 사용 가능
                                     user_input, 
                                     chat_session, 
                                     response_language, 
                                     youtube_url
                                 )
-                                
-                                # chat_history 업데이트
                                 st.session_state.chat_history = chat_session.history
                             else:
-                                response = f"❌ 비디오 요약 실패: {result['error']}"
+                                response = f"❌ 비디오 처리 실패: {result['error']}"
                     except Exception as e:
                         logger.error(f"유튜브 처리 오류: {str(e)}")
                         response = f"❌ 유튜브 비디오를 처리하는 중 오류가 발생했습니다: {str(e)}"
+                        
                 elif is_webpage_request:
                     status.update(label=get_text("processing_webpage", response_language))
                     if st.session_state.current_webpage_url != webpage_url:

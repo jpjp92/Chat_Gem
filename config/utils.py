@@ -732,7 +732,7 @@ def post_process_youtube_summary(summary: str, lang: str) -> str:
     return '\n'.join(processed_lines)
 
 def analyze_youtube_with_gemini(video_url: str, user_input: str, model, lang: str) -> Dict[str, Any]:
-    """Gemini 모델을 사용해 YouTube 비디오를 개선된 방식으로 분석하고 요약합니다."""
+    """Gemini 모델을 사용해 YouTube 비디오를 분석하고 transcript, metadata, summary를 모두 반환합니다."""
     start_time = time.time()
     logger.info(f"Enhanced YouTube analysis for: {video_url}")
 
@@ -742,32 +742,71 @@ def analyze_youtube_with_gemini(video_url: str, user_input: str, model, lang: st
             return {
                 "video_url": video_url,
                 "question": user_input,
+                "transcript": "",
+                "metadata": {},
                 "summary": "❌ 유효하지 않은 YouTube URL입니다." if lang == 'ko' else "❌ Invalid YouTube URL.",
                 "status": "error",
                 "error": "Invalid YouTube URL",
                 "processing_time": 0
             }
 
-        is_summary_request = any(keyword in user_input.lower() for keyword in 
-                               ['요약', '정리', 'summary', 'summarize', '설명', 'explain'])
+        # 1단계: transcript와 metadata 추출
+        transcript_question = "Please provide the full transcript of this YouTube video along with basic metadata (title, channel). Format your response as:\n\nTITLE: [video title]\nCHANNEL: [channel name]\nTRANSCRIPT:\n[full transcript text]"
         
-        point_count = 5
-        if match := re.search(r'(\d+)개\s*(포인트|항목|줄)', user_input, re.IGNORECASE):
-            point_count = min(int(match.group(1)), 10)
-        elif match := re.search(r'(\d+)\s*(points|lines)', user_input, re.IGNORECASE):
-            point_count = min(int(match.group(1)), 10)
+        transcript_response = model.generate_content([
+            {
+                "file_data": {
+                    "file_uri": video_url,
+                    "mime_type": "video/youtube"
+                }
+            },
+            {"text": transcript_question}
+        ])
 
-        keywords = extract_keywords_from_query(user_input)
+        # transcript와 metadata 파싱
+        transcript = ""
+        metadata = {"title": "Unknown", "channel": "Unknown"}
         
-        if lang == 'ko':
-            if is_summary_request:
+        if transcript_response.parts:
+            full_response = transcript_response.text
+            
+            # 메타데이터 추출
+            if "TITLE:" in full_response:
+                title_match = re.search(r'TITLE:\s*(.+)', full_response)
+                if title_match:
+                    metadata["title"] = title_match.group(1).strip()
+            
+            if "CHANNEL:" in full_response:
+                channel_match = re.search(r'CHANNEL:\s*(.+)', full_response)
+                if channel_match:
+                    metadata["channel"] = channel_match.group(1).strip()
+            
+            # transcript 추출
+            if "TRANSCRIPT:" in full_response:
+                transcript_start = full_response.find("TRANSCRIPT:")
+                transcript = full_response[transcript_start + len("TRANSCRIPT:"):].strip()
+            else:
+                transcript = full_response  # fallback
+
+        # 2단계: 사용자 요청에 따른 분석 (선택적)
+        summary = ""
+        if any(keyword in user_input.lower() for keyword in 
+               ['요약', '정리', 'summary', 'summarize', '설명', 'explain']):
+            
+            # 기존 분석 로직 사용
+            is_summary_request = True
+            point_count = 5
+            if match := re.search(r'(\d+)개\s*(포인트|항목|줄)', user_input, re.IGNORECASE):
+                point_count = min(int(match.group(1)), 10)
+            elif match := re.search(r'(\d+)\s*(points|lines)', user_input, re.IGNORECASE):
+                point_count = min(int(match.group(1)), 10)
+
+            if lang == 'ko':
                 question = f"""이 YouTube 비디오를 한국어로 전문적으로 분석해주세요.
 
 사용자 요청: {user_input}
 
 다음 형식으로 답변해주세요:
-
-🎬 **비디오 분석**
 
 📝 **주요 내용** ({point_count}개 포인트):
 - 핵심 포인트 1
@@ -780,36 +819,18 @@ def analyze_youtube_with_gemini(video_url: str, user_input: str, model, lang: st
 💡 **주요 인사이트**:
 특별히 주목할 만한 내용이나 새로운 정보
 
-🔗 **출처**: {video_url}
-
 분석 지침:
 - 비디오의 주요 내용을 {point_count}개 포인트로 체계적으로 정리
 - 중요한 데이터, 통계, 사실이 있다면 포함
 - 발표자의 핵심 주장이나 결론을 명확히 제시
 - 실용적이고 유용한 정보 위주로 요약
-- 이모지를 적절히 사용하여 가독성 향상
 - 반드시 한국어로만 답변하세요"""
             else:
-                question = f"""이 YouTube 비디오를 바탕으로 다음 질문에 한국어로 답변해주세요:
-
-질문: {user_input}
-
-답변 시 다음을 포함해주세요:
-- 비디오 내용을 기반으로 한 정확한 답변
-- 관련된 구체적인 예시나 데이터
-- 실용적인 조언이나 인사이트
-- 이모지를 사용한 명확한 구조화
-
-반드시 한국어로만 답변하세요."""
-        else:
-            if is_summary_request:
                 question = f"""Please analyze this YouTube video professionally in English.
 
 User Request: {user_input}
 
 Please respond in the following format:
-
-🎬 **Video Analysis**
 
 📝 **Key Points** ({point_count} points):
 - Key point 1
@@ -822,51 +843,34 @@ The most important message or conclusion of the video
 💡 **Key Insights**:
 Particularly noteworthy content or new information
 
-🔗 **Source**: {video_url}
-
 Analysis Guidelines:
 - Systematically organize main content into {point_count} points
 - Include important data, statistics, or facts if present
 - Clearly present the speaker's main arguments or conclusions
 - Focus on practical and useful information
-- Use appropriate emojis for readability
 - Respond only in English"""
-            else:
-                question = f"""Based on this YouTube video, please answer the following question in English:
 
-Question: {user_input}
+            analysis_response = model.generate_content([
+                {
+                    "file_data": {
+                        "file_uri": video_url,
+                        "mime_type": "video/youtube"
+                    }
+                },
+                {"text": question}
+            ])
 
-Please include in your response:
-- Accurate answer based on video content
-- Specific examples or data mentioned
-- Practical advice or insights
-- Clear structure using appropriate emojis
+            if analysis_response.parts:
+                summary = analysis_response.text
+                summary = post_process_youtube_summary(summary, lang)
 
-Respond only in English."""
-
-        response = model.generate_content([
-            {
-                "file_data": {
-                    "file_uri": video_url,
-                    "mime_type": "video/youtube"
-                }
-            },
-            {"text": question}
-        ])
-
-        if response.parts:
-            result_text = response.text
-            status = "success"
-            error = None
-            result_text = post_process_youtube_summary(result_text, lang)
-        else:
-            result_text = None
-            status = "failed"
-            finish_reason = response.candidates[0].finish_reason if response.candidates else 'N/A'
-            error = f"응답이 비어있거나 차단되었습니다. Finish Reason: {finish_reason}" if lang == 'ko' else f"Response is empty or blocked. Finish Reason: {finish_reason}"
+        status = "success"
+        error = None
 
     except Exception as e:
-        result_text = None
+        transcript = ""
+        metadata = {"title": "Unknown", "channel": "Unknown"}
+        summary = ""
         status = "error"
         error_msg = f"분석 중 오류 발생: {e}" if lang == 'ko' else f"Error during analysis: {e}"
         error = error_msg
@@ -877,7 +881,9 @@ Respond only in English."""
     return {
         "video_url": video_url,
         "question": user_input,
-        "summary": result_text,
+        "transcript": transcript,          # 새로 추가
+        "metadata": metadata,              # 새로 추가
+        "summary": summary,
         "status": status,
         "error": error,
         "processing_time": round(processing_time, 2)
