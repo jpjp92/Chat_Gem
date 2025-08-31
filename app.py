@@ -263,7 +263,7 @@ def increment_usage():
 
 def detect_response_language(user_input: str, system_language: str) -> str:
     """사용자 입력에서 응답 언어를 감지합니다 (개선된 버전)"""
-    user_input_lower = user_input.lower()
+    user_input_lower = user_input.lower().strip()
     
     # 1. 명시적 언어 요청 감지 (최우선)
     if any(phrase in user_input_lower for phrase in ["한국어로", "in korean", "en coreano"]):
@@ -273,15 +273,38 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     elif any(phrase in user_input_lower for phrase in ["in spanish", "스페인어로", "en español"]):
         return "es"
     
-    # 2. 입력 언어 감지 및 적용
+    # 2. 영어 키워드 강력 감지 (짧은 문장 대응)
+    english_keywords = [
+        'analyze', 'describe', 'explain', 'what', 'how', 'when', 'where', 'why',
+        'show', 'tell', 'please', 'can', 'could', 'would', 'should', 'image',
+        'picture', 'photo', 'this', 'that', 'these', 'those', 'help', 'hello'
+    ]
+    
+    # 입력이 대부분 영어 단어로 구성된 경우
+    words = user_input_lower.split()
+    if len(words) >= 2:  # 최소 2단어 이상
+        english_word_count = sum(1 for word in words if word in english_keywords)
+        if english_word_count / len(words) >= 0.6:  # 60% 이상이 영어 키워드
+            logger.info(f"영어 키워드 감지: {english_word_count}/{len(words)} words")
+            return "en"
+    
+    # 3. 전체가 영어 알파벳인지 확인 (한글 없음)
+    has_korean = bool(re.search(r'[가-힣]', user_input))
+    has_english_letters = bool(re.search(r'[a-zA-Z]', user_input))
+    
+    if has_english_letters and not has_korean and len(user_input.strip()) > 5:
+        logger.info(f"영어 전용 입력 감지: '{user_input}'")
+        return "en"
+    
+    # 4. detect_dominant_language 함수 사용
     detected_lang, confidence = detect_dominant_language(user_input, system_language)
     
-    # 3. 감지된 언어가 다르고 신뢰도가 있으면 해당 언어로 응답
-    if detected_lang != system_language and confidence >= 0.4:  # 임계값 완화
+    # 5. 감지된 언어가 다르고 신뢰도가 있으면 해당 언어로 응답
+    if detected_lang != system_language and confidence >= 0.4:
         logger.info(f"언어 감지 결과: {detected_lang}, 신뢰도: {confidence:.2f}")
         return detected_lang
     
-    # 4. 그 외의 경우: 시스템 언어 사용
+    # 6. 그 외의 경우: 시스템 언어 사용
     return system_language
 
 def create_model_for_language(language: str):
