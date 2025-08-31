@@ -223,11 +223,19 @@ def process_image_for_gemini(uploaded_file):
         return None
 
 def is_image_analysis_request(query, has_images):
-    """이미지 분석 요청인지 확인"""
+    """이미지 분석 요청인지 확인 (한국어/영어 지원)"""
     if not has_images:
         return False
-    analysis_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
-    return any(keyword in query for keyword in analysis_keywords)
+    
+    # 한국어 키워드
+    ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
+    
+    # 영어 키워드 추가
+    en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
+    
+    all_keywords = ko_keywords + en_keywords
+    
+    return any(keyword in query.lower() for keyword in all_keywords)
 
 def is_pdf_analysis_request(query, has_pdf):
     """PDF 분석 요청인지 확인"""
