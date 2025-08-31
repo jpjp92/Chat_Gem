@@ -222,26 +222,68 @@ def process_image_for_gemini(uploaded_file):
         logger.error(f"이미지 처리 오류: {str(e)}")
         return None
 
+# def is_image_analysis_request(query, has_images):
+#     """이미지 분석 요청인지 확인 (한국어/영어 지원)"""
+#     if not has_images:
+#         return False
+    
+#     # 한국어 키워드
+#     ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
+    
+#     # 영어 키워드 추가
+#     en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
+    
+#     all_keywords = ko_keywords + en_keywords
+    
+#     return any(keyword in query.lower() for keyword in all_keywords)
+
 def is_image_analysis_request(query, has_images):
-    """이미지 분석 요청인지 확인 (한국어/영어 지원)"""
+    """이미지 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
     if not has_images:
         return False
     
     # 한국어 키워드
     ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
     
-    # 영어 키워드 추가
+    # 영어 키워드
     en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
     
-    all_keywords = ko_keywords + en_keywords
+    # 스페인어 키워드 추가
+    es_keywords = [
+        'analizar', 'describir', 'explicar', 'qué', 'mostrar', 'leer', 'decir', 'ver', 
+        'imagen', 'foto', 'picture', 'muestra', 'enseña', 'dice', 'contiene',
+        'puedes', 'podrías', 'ayuda', 'favor'
+    ]
+    
+    # 모든 키워드 통합
+    all_keywords = ko_keywords + en_keywords + es_keywords
     
     return any(keyword in query.lower() for keyword in all_keywords)
 
+
+# def is_pdf_analysis_request(query, has_pdf):
+#     """PDF 분석 요청인지 확인"""
+#     if not has_pdf and not is_pdf_summarization_request(query)[0]:
+#         return False
+#     analysis_keywords = ['요약', '분석', '설명', '알려줘', '정리', 'summarize', 'analyze', 'explain']
+#     return any(keyword in query.lower() for keyword in analysis_keywords)
+
 def is_pdf_analysis_request(query, has_pdf):
-    """PDF 분석 요청인지 확인"""
+    """PDF 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
     if not has_pdf and not is_pdf_summarization_request(query)[0]:
         return False
-    analysis_keywords = ['요약', '분석', '설명', '알려줘', '정리', 'summarize', 'analyze', 'explain']
+    
+    # 다국어 분석 키워드
+    analysis_keywords = [
+        # 한국어
+        '요약', '분석', '설명', '알려줘', '정리',
+        # 영어  
+        'summarize', 'analyze', 'explain', 'describe', 'tell',
+        # 스페인어
+        'resumir', 'analizar', 'explicar', 'describir', 'decir',
+        'mostrar', 'ayuda', 'puedes', 'podrías'
+    ]
+    
     return any(keyword in query.lower() for keyword in analysis_keywords)
 
 def get_usage_count():
@@ -262,7 +304,7 @@ def increment_usage():
         st.session_state.usage_data = {"date": today, "count": 1}
 
 def detect_response_language(user_input: str, system_language: str) -> str:
-    """사용자 입력에서 응답 언어를 감지합니다 (개선된 버전)"""
+    """사용자 입력에서 응답 언어를 감지합니다 (한국어/영어/스페인어 지원)"""
     user_input_lower = user_input.lower().strip()
     
     # 1. 명시적 언어 요청 감지 (최우선)
@@ -273,38 +315,56 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     elif any(phrase in user_input_lower for phrase in ["in spanish", "스페인어로", "en español"]):
         return "es"
     
-    # 2. 영어 키워드 강력 감지 (짧은 문장 대응)
+    # 2. 스페인어 키워드 강력 감지
+    spanish_keywords = [
+        'analizar', 'describir', 'explicar', 'qué', 'cómo', 'cuándo', 'dónde', 'por qué',
+        'mostrar', 'decir', 'hola', 'gracias', 'por favor', 'imagen', 'foto', 'resumir',
+        'video', 'página', 'documento', 'ayuda', 'puedes', 'podrías', 'sí', 'no'
+    ]
+    
+    # 3. 영어 키워드 강력 감지  
     english_keywords = [
         'analyze', 'describe', 'explain', 'what', 'how', 'when', 'where', 'why',
         'show', 'tell', 'please', 'can', 'could', 'would', 'should', 'image',
-        'picture', 'photo', 'this', 'that', 'these', 'those', 'help', 'hello'
+        'picture', 'photo', 'help', 'hello', 'yes', 'no', 'summarize'
     ]
     
-    # 입력이 대부분 영어 단어로 구성된 경우
+    # 입력이 대부분 특정 언어 단어로 구성된 경우
     words = user_input_lower.split()
     if len(words) >= 2:  # 최소 2단어 이상
-        english_word_count = sum(1 for word in words if word in english_keywords)
-        if english_word_count / len(words) >= 0.6:  # 60% 이상이 영어 키워드
-            logger.info(f"영어 키워드 감지: {english_word_count}/{len(words)} words")
+        # 스페인어 키워드 체크
+        spanish_count = sum(1 for word in words if word in spanish_keywords)
+        if spanish_count / len(words) >= 0.6:  # 60% 이상이 스페인어 키워드
+            logger.info(f"스페인어 키워드 감지: {spanish_count}/{len(words)} words")
+            return "es"
+            
+        # 영어 키워드 체크
+        english_count = sum(1 for word in words if word in english_keywords)
+        if english_count / len(words) >= 0.6:  # 60% 이상이 영어 키워드
+            logger.info(f"영어 키워드 감지: {english_count}/{len(words)} words")
             return "en"
     
-    # 3. 전체가 영어 알파벳인지 확인 (한글 없음)
+    # 4. 문자 체계 감지
     has_korean = bool(re.search(r'[가-힣]', user_input))
+    has_spanish_chars = bool(re.search(r'[ñáéíóúü¿¡]', user_input))  # 스페인어 특수문자
     has_english_letters = bool(re.search(r'[a-zA-Z]', user_input))
     
-    if has_english_letters and not has_korean and len(user_input.strip()) > 5:
+    if has_spanish_chars:
+        logger.info(f"스페인어 특수문자 감지: '{user_input}'")
+        return "es"
+    elif has_english_letters and not has_korean and len(user_input.strip()) > 5:
         logger.info(f"영어 전용 입력 감지: '{user_input}'")
         return "en"
     
-    # 4. detect_dominant_language 함수 사용
+    # 5. detect_dominant_language 함수 사용
     detected_lang, confidence = detect_dominant_language(user_input, system_language)
     
-    # 5. 감지된 언어가 다르고 신뢰도가 있으면 해당 언어로 응답
+    # 6. 감지된 언어가 다르고 신뢰도가 있으면 해당 언어로 응답
     if detected_lang != system_language and confidence >= 0.4:
         logger.info(f"언어 감지 결과: {detected_lang}, 신뢰도: {confidence:.2f}")
         return detected_lang
     
-    # 6. 그 외의 경우: 시스템 언어 사용
+    # 7. 그 외의 경우: 시스템 언어 사용
     return system_language
 
 def create_model_for_language(language: str):
@@ -317,22 +377,42 @@ def create_model_for_language(language: str):
         'DANGEROUS': 'BLOCK_NONE',
     }
     
-    # 언어별 응답 가이드라인 (강제하지 않고 가이드만 제공)
+    # 언어별 응답 가이드라인 (각 언어로 작성)
     language_names = {
         "ko": "한국어",
         "en": "English", 
         "es": "español"
     }
     
-    system_prompt_with_lang = f"""{system_prompt}
-
-사용자의 입력 언어나 명시적 요청에 따라 적절한 언어로 응답해주세요.
+    # 언어별 가이드라인 구성
+    if language == "ko":
+        language_guide = """사용자의 입력 언어나 명시적 요청에 따라 적절한 언어로 응답해주세요.
 - 사용자가 한국어로 입력하면 한국어로 응답
 - 사용자가 영어로 입력하면 영어로 응답  
 - 사용자가 스페인어로 입력하면 스페인어로 응답
 - 명시적인 언어 요청이 있으면 해당 언어로 응답
 
-기본 선호 언어는 {language_names.get(language, language)}입니다."""
+기본 선호 언어는 한국어입니다."""
+    elif language == "es":
+        language_guide = """Responde en el idioma apropiado según la entrada del usuario o solicitud explícita.
+- Si el usuario escribe en coreano, responde en coreano
+- Si el usuario escribe en inglés, responde en inglés
+- Si el usuario escribe en español, responde en español
+- Si hay una solicitud explícita de idioma, responde en ese idioma
+
+El idioma preferido por defecto es español."""
+    else:  # English
+        language_guide = """Please respond in the appropriate language based on user input or explicit request.
+- If the user inputs in Korean, respond in Korean
+- If the user inputs in English, respond in English
+- If the user inputs in Spanish, respond in Spanish
+- If there's an explicit language request, respond in that language
+
+The default preferred language is English."""
+    
+    system_prompt_with_lang = f"""{system_prompt}
+
+{language_guide}"""
     
     return genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
 
