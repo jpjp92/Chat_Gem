@@ -888,3 +888,73 @@ Analysis Guidelines:
         "error": error,
         "processing_time": round(processing_time, 2)
     }
+
+def is_image_analysis_request(query, has_images):
+    """이미지 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
+    if not has_images:
+        return False
+    
+    # 한국어 키워드
+    ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
+    
+    # 영어 키워드
+    en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
+    
+    # 스페인어 키워드 추가
+    es_keywords = [
+        'analizar', 'describir', 'explicar', 'qué', 'mostrar', 'leer', 'decir', 'ver', 
+        'imagen', 'foto', 'picture', 'muestra', 'enseña', 'dice', 'contiene',
+        'puedes', 'podrías', 'ayuda', 'favor'
+    ]
+    
+    # 모든 키워드 통합
+    all_keywords = ko_keywords + en_keywords + es_keywords
+    
+    return any(keyword in query.lower() for keyword in all_keywords)
+
+def is_pdf_analysis_request(query, has_pdf):
+    """PDF 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
+    if not has_pdf and not is_pdf_summarization_request(query)[0]:
+        return False
+    
+    # 다국어 분석 키워드
+    analysis_keywords = [
+        # 한국어
+        '요약', '분석', '설명', '알려줘', '정리',
+        # 영어  
+        'summarize', 'analyze', 'explain', 'describe', 'tell',
+        # 스페인어
+        'resumir', 'analizar', 'explicar', 'describir', 'decir',
+        'mostrar', 'ayuda', 'puedes', 'podrías'
+    ]
+    
+    return any(keyword in query.lower() for keyword in analysis_keywords)
+
+def create_summary(text: str, target_length: int = 400) -> str:
+    """글자수 기준 요약 생성 (최종 폴백용)"""
+    sentences = re.split(r'[.!?]\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s) > 15]
+    if not sentences:
+        return text[:target_length] + "..." if len(text) > target_length else text
+    sentence_scores = []
+    for i, sentence in enumerate(sentences):
+        length_score = len(sentence.split())
+        position_score = max(0, 10 - i * 0.5)
+        total_score = length_score + position_score
+        sentence_scores.append((total_score, sentence))
+    sentence_scores.sort(reverse=True)
+    summary = ""
+    for score, sentence in sentence_scores:
+        test_summary = summary + sentence + ". "
+        if len(test_summary) <= target_length:
+            summary = test_summary
+        elif len(summary) < 100:
+            remaining = target_length - len(summary) - 3
+            if remaining > 50:
+                summary += sentence[:remaining] + "..."
+                break
+        else:
+            break
+    if len(summary) < 50:
+        summary = text[:target_length-3] + "..."
+    return summary.strip()

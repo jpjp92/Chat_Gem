@@ -65,6 +65,23 @@ from config.utils import (
     fetch_pdf_text,
     analyze_youtube_with_gemini,
     extract_webpage_metadata,
+    is_image_analysis_request,
+    is_pdf_analysis_request,
+    create_summary,
+)
+
+# Import validators
+from config.validators import (
+    validate_nickname,
+    validate_image_file,
+    validate_pdf_file,
+    process_image_for_gemini,
+)
+
+# Import usage manager
+from config.usage_manager import (
+    get_usage_count,
+    increment_usage,
 )
 
 # Import session manager
@@ -106,21 +123,6 @@ try:
 except Exception as e:
     st.error(get_text("api_error", st.session_state.get("system_language", "ko"), str(e)))
     st.stop()
-
-def validate_nickname(nickname):
-    """닉네임 유효성 검사 (다국어 적용)"""
-    lang = st.session_state.get("system_language", "ko")
-    
-    if not nickname or not nickname.strip():
-        return False, get_text("nickname_required", lang)
-    nickname = nickname.strip()
-    if len(nickname) < 2:
-        return False, get_text("nickname_too_short", lang)
-    if len(nickname) > 20:
-        return False, get_text("nickname_too_long", lang)
-    if not re.match(r'^[가-힣a-zA-Z0-9_\s]+$', nickname):
-        return False, get_text("nickname_invalid_chars", lang)
-    return True, get_text("nickname_valid", lang)
 
 def create_or_get_user(nickname):
     """Supabase에서 사용자를 조회하거나 새로 생성합니다."""
@@ -188,120 +190,6 @@ def show_login_page():
                 except Exception as e:
                     logger.error(f"로그인 오류: {e}")
                     st.error(get_text("login_error", lang))
-
-def validate_image_file(uploaded_file):
-    """업로드된 이미지 파일 유효성 검사 (다국어 적용)"""
-    lang = st.session_state.system_language
-    
-    supported_types = ['image/png', 'image/jpeg', 'image/webp']
-    if uploaded_file.type not in supported_types:
-        return False, get_text("unsupported_image_format", lang)
-    max_size = 10 * 1024 * 1024  # 10MB
-    if uploaded_file.size > max_size:
-        return False, get_text("image_too_large", lang, size=uploaded_file.size / (1024*1024))
-    return True, get_text("valid_image", lang)
-
-def validate_pdf_file(uploaded_file):
-    """업로드된 PDF 파일 유효성 검사 (다국어 적용)"""
-    lang = st.session_state.system_language
-    
-    if uploaded_file.type != 'application/pdf':
-        return False, get_text("unsupported_pdf_format", lang)
-    max_size = 30 * 1024 * 1024  # 30MB
-    if uploaded_file.size > max_size:
-        return False, get_text("pdf_too_large", lang, size=uploaded_file.size / (1024*1024))
-    return True, get_text("valid_pdf", lang)
-
-def process_image_for_gemini(uploaded_file):
-    """Gemini API용 이미지 처리"""
-    try:
-        image = Image.open(uploaded_file)
-        logger.info(f"이미지 크기: {image.size}, 모드: {image.mode}, 형식: {image.format}")
-        return image
-    except Exception as e:
-        logger.error(f"이미지 처리 오류: {str(e)}")
-        return None
-
-# def is_image_analysis_request(query, has_images):
-#     """이미지 분석 요청인지 확인 (한국어/영어 지원)"""
-#     if not has_images:
-#         return False
-    
-#     # 한국어 키워드
-#     ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
-    
-#     # 영어 키워드 추가
-#     en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
-    
-#     all_keywords = ko_keywords + en_keywords
-    
-#     return any(keyword in query.lower() for keyword in all_keywords)
-
-def is_image_analysis_request(query, has_images):
-    """이미지 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
-    if not has_images:
-        return False
-    
-    # 한국어 키워드
-    ko_keywords = ['분석', '설명', '알려줘', '무엇', '뭐', '어떤', '보여줘', '읽어줘', '해석', '분석해줘']
-    
-    # 영어 키워드
-    en_keywords = ['analyze', 'describe', 'explain', 'what', 'show', 'read', 'tell', 'see', 'image', 'picture', 'photo']
-    
-    # 스페인어 키워드 추가
-    es_keywords = [
-        'analizar', 'describir', 'explicar', 'qué', 'mostrar', 'leer', 'decir', 'ver', 
-        'imagen', 'foto', 'picture', 'muestra', 'enseña', 'dice', 'contiene',
-        'puedes', 'podrías', 'ayuda', 'favor'
-    ]
-    
-    # 모든 키워드 통합
-    all_keywords = ko_keywords + en_keywords + es_keywords
-    
-    return any(keyword in query.lower() for keyword in all_keywords)
-
-
-# def is_pdf_analysis_request(query, has_pdf):
-#     """PDF 분석 요청인지 확인"""
-#     if not has_pdf and not is_pdf_summarization_request(query)[0]:
-#         return False
-#     analysis_keywords = ['요약', '분석', '설명', '알려줘', '정리', 'summarize', 'analyze', 'explain']
-#     return any(keyword in query.lower() for keyword in analysis_keywords)
-
-def is_pdf_analysis_request(query, has_pdf):
-    """PDF 분석 요청인지 확인 (한국어/영어/스페인어 지원)"""
-    if not has_pdf and not is_pdf_summarization_request(query)[0]:
-        return False
-    
-    # 다국어 분석 키워드
-    analysis_keywords = [
-        # 한국어
-        '요약', '분석', '설명', '알려줘', '정리',
-        # 영어  
-        'summarize', 'analyze', 'explain', 'describe', 'tell',
-        # 스페인어
-        'resumir', 'analizar', 'explicar', 'describir', 'decir',
-        'mostrar', 'ayuda', 'puedes', 'podrías'
-    ]
-    
-    return any(keyword in query.lower() for keyword in analysis_keywords)
-
-def get_usage_count():
-    """일일 사용량 추적"""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if "usage_data" not in st.session_state:
-        st.session_state.usage_data = {"date": today, "count": 0}
-    if st.session_state.usage_data["date"] != today:
-        st.session_state.usage_data = {"date": today, "count": 0}
-    return st.session_state.usage_data["count"]
-
-def increment_usage():
-    """사용량 증가"""
-    if "usage_data" in st.session_state:
-        st.session_state.usage_data["count"] += 1
-    else:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        st.session_state.usage_data = {"date": today, "count": 1}
 
 def detect_response_language(user_input: str, system_language: str) -> str:
     """사용자 입력에서 응답 언어를 감지합니다 (한국어/영어/스페인어 지원)"""
@@ -415,35 +303,6 @@ The default preferred language is English."""
 {language_guide}"""
     
     return genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
-
-def create_summary(text: str, target_length: int = 400) -> str:
-    """글자수 기준 요약 생성 (최종 폴백용)"""
-    sentences = re.split(r'[.!?]\s+', text)
-    sentences = [s.strip() for s in sentences if s.strip() and len(s) > 15]
-    if not sentences:
-        return text[:target_length] + "..." if len(text) > target_length else text
-    sentence_scores = []
-    for i, sentence in enumerate(sentences):
-        length_score = len(sentence.split())
-        position_score = max(0, 10 - i * 0.5)
-        total_score = length_score + position_score
-        sentence_scores.append((total_score, sentence))
-    sentence_scores.sort(reverse=True)
-    summary = ""
-    for score, sentence in sentence_scores:
-        test_summary = summary + sentence + ". "
-        if len(test_summary) <= target_length:
-            summary = test_summary
-        elif len(summary) < 100:
-            remaining = target_length - len(summary) - 3
-            if remaining > 50:
-                summary += sentence[:remaining] + "..."
-                break
-        else:
-            break
-    if len(summary) < 50:
-        summary = text[:target_length-3] + "..."
-    return summary.strip()
 
 def show_chat_dashboard():
     """기존 채팅 대쉬보드 표시 (다국어 적용)"""
