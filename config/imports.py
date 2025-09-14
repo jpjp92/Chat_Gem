@@ -21,7 +21,7 @@ import multiprocessing
 import asyncio
 import atexit
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import urllib.parse
