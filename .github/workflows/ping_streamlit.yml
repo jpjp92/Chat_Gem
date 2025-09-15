@@ -8,69 +8,105 @@ on:
 env:
   # 권장: 실제 URL은 GitHub Secrets에 STREAMLIT_URL로 저장
   STREAMLIT_URL: ${{ secrets.STREAMLIT_URL }}
+  # Optional: multiple URLs (comma separated). If set, this takes precedence over STREAMLIT_URL
+  STREAMLIT_URLS: ${{ secrets.STREAMLIT_URLS }}
+  # Optional Slack webhook for notifications
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Quick ping (HTTP status)
+      - name: Multi-URL ping & health checks
         run: |
-          URL="${{ secrets.STREAMLIT_URL }}"
-          # trailing slash 제거
-          URL="${URL%/}"
-          echo "🏃‍♂️ Quick ping -> $URL"
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "$URL" || echo "000")
-          echo "📡 Response code: $http_code"
-          if [[ "$http_code" =~ ^[23] ]]; then
-            if [[ "$http_code" =~ ^3 ]]; then
-              echo "⚠️ Redirect response (HTTP $http_code) — app may require login but host is responding."
-            else
-              echo "✅ App is awake (HTTP $http_code)"
-            fi
-          else
-            echo "❌ App returned HTTP $http_code"
+          # Accept either STREAMLIT_URLS (comma-separated) or single STREAMLIT_URL
+          URLS="$STREAMLIT_URLS"
+          if [ -z "$URLS" ]; then
+            URLS="$STREAMLIT_URL"
+          fi
+          # Fallback to a default list if no secrets provided
+          if [ -z "$URLS" ]; then
+            URLS="https://assistant-gemini25.streamlit.app,https://mbti-multi.streamlit.app,https://ko-chat-bot25.streamlit.app"
+            echo "No secrets set — falling back to default URL list."
           fi
 
-      - name: Health check with retry
-        run: |
-          URL="${{ secrets.STREAMLIT_URL }}"
-          URL="${URL%/}"
-          max_attempts=3
-          attempt=1
-          wait_seconds=30
+          if [ -z "$URLS" ]; then
+            echo "No URL provided in STREAMLIT_URLS or STREAMLIT_URL secrets."
+            exit 1
+          fi
 
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt/$max_attempts -> $URL"
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
-            echo "HTTP $http_code"
+          IFS=',' read -ra ADDR <<< "$URLS"
+          FAILED=()
+
+          check_one() {
+            raw="$1"
+            # trim spaces
+            URL=$(echo "$raw" | sed -e 's/^\s*//' -e 's/\s*$//')
+            URL="${URL%/}"
+            echo "\n--- Checking: $URL ---"
+
+            echo "Quick ping -> $URL"
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "$URL" || echo "000")
+            echo "Response code: $http_code"
             if [[ "$http_code" =~ ^[23] ]]; then
               if [[ "$http_code" =~ ^3 ]]; then
-                echo "⚠️ Redirect on attempt $attempt (HTTP $http_code) — app may require login but host is responding."
+                echo "⚠️ Redirect response (HTTP $http_code) — app may require login but host is responding."
               else
-                echo "✅ Success on attempt $attempt (HTTP $http_code)"
+                echo "✅ App is awake (HTTP $http_code)"
               fi
-              exit 0
             else
-              echo "⚠️ Attempt $attempt failed ($http_code)"
-              if [ $attempt -lt $max_attempts ]; then
-                echo "⏳ Waiting $wait_seconds seconds..."
-                sleep $wait_seconds
-              fi
+              echo "❌ App returned HTTP $http_code"
             fi
-            attempt=$((attempt + 1))
+
+            # Health check with retry
+            max_attempts=3
+            attempt=1
+            wait_seconds=30
+            success=0
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt/$max_attempts -> $URL"
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
+              echo "HTTP $http_code"
+              if [[ "$http_code" =~ ^[23] ]]; then
+                if [[ "$http_code" =~ ^3 ]]; then
+                  echo "⚠️ Redirect on attempt $attempt (HTTP $http_code) — host responding."
+                else
+                  echo "✅ Success on attempt $attempt (HTTP $http_code)"
+                fi
+                success=1
+                break
+              else
+                echo "⚠️ Attempt $attempt failed ($http_code)"
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "⏳ Waiting $wait_seconds seconds..."
+                  sleep $wait_seconds
+                fi
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            if [ $success -eq 0 ]; then
+              echo "❌ All attempts failed for $URL"
+              FAILED+=("$URL")
+            fi
+          }
+
+          for raw in "${ADDR[@]}"; do
+            check_one "$raw"
           done
 
-          echo "❌ All attempts failed"
-          exit 1
-
-      - name: Notify failure to Slack (optional)
-        if: failure()
-        run: |
-          SLACK_WEBHOOK="${{ secrets.SLACK_WEBHOOK }}"
-          if [ -z "$SLACK_WEBHOOK" ]; then
-            echo "No SLACK_WEBHOOK set; skipping Slack notification."
-            exit 0
+          if [ ${#FAILED[@]} -ne 0 ]; then
+            echo "\nFailed URLs: ${FAILED[*]}"
+            # Optional Slack notification from here
+            SLACK_WEBHOOK="$SLACK_WEBHOOK"
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              text="[Keep-Awake] The following URLs failed health check: ${FAILED[*]}"
+              payload="{\"text\":\"${text}\"}"
+              curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
+            else
+              echo "No SLACK_WEBHOOK set; skipping Slack notification."
+            fi
+            exit 1
+          else
+            echo "\nAll URLs OK"
           fi
-          URL="${{ secrets.STREAMLIT_URL }}"
-          payload="{\"text\":\"[Keep-Awake] Streamlit health check FAILED for ${URL}\"}"
-          curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
