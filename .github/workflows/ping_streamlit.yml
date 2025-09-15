@@ -1,0 +1,69 @@
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    - cron: "0 * * * *"    # 매시간 정각 실행 (UTC 기준)
+  workflow_dispatch:        # 수동 실행 허용
+
+env:
+  # 권장: 실제 URL은 GitHub Secrets에 STREAMLIT_URL로 저장
+  STREAMLIT_URL: ${{ secrets.STREAMLIT_URL }}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quick ping (HTTP status)
+        run: |
+          URL="${{ secrets.STREAMLIT_URL }}"
+          # trailing slash 제거
+          URL="${URL%/}"
+          echo "🏃‍♂️ Quick ping -> $URL"
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "$URL" || echo "000")
+          echo "📡 Response code: $http_code"
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ App is awake"
+          else
+            echo "⚠️ App returned HTTP $http_code"
+          fi
+
+      - name: Health check with retry
+        run: |
+          URL="${{ secrets.STREAMLIT_URL }}"
+          URL="${URL%/}"
+          max_attempts=3
+          attempt=1
+          wait_seconds=30
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts -> $URL"
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
+            echo "HTTP $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "✅ Success on attempt $attempt"
+              exit 0
+            else
+              echo "⚠️ Attempt $attempt failed ($http_code)"
+              if [ $attempt -lt $max_attempts ]; then
+                echo "⏳ Waiting $wait_seconds seconds..."
+                sleep $wait_seconds
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ All attempts failed"
+          exit 1
+
+      - name: Notify failure to Slack (optional)
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "No SLACK_WEBHOOK set; skipping Slack notification."
+            exit 0
+          fi
+          URL="${{ secrets.STREAMLIT_URL }}"
+          payload="{\"text\":\"[Keep-Awake] Streamlit health check FAILED for ${URL}\"}"
+          curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
