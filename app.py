@@ -404,8 +404,7 @@ def show_chat_dashboard():
             {get_text("help_basic", lang)}
             {get_text("help_basic_content", lang)}
             
-            {get_text("help_tips", lang)}
-            {get_text("help_tips_content", lang)}
+        
             """)
 
     # 메인 화면 - 환영 메시지 및 예시 버튼
