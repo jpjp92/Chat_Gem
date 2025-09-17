@@ -108,17 +108,17 @@ TEXTS = {
         # 도움말
         "help_basic": "**기본 사용법** 💬",
         "help_basic_content": """
-            - 자연스러운 한국어로 질문하세요
-            - 이전 대화 내용을 기억합니다
-            - 복잡한 요청도 단계별로 처리합니다
+- 자연스러운 한국어로 질문하세요
+- 이전 대화 내용을 기억합니다
+- 복잡한 요청도 단계별로 처리합니다
         """,
         "help_tips": "**유용한 팁** 💡",
-        "help_tips_content": (
-            "- 구체적인 질문일수록 정확한 답변\n"
-            "- \"다시 설명해줘\", \"더 자세히\" 등으로 추가 요청\n"
-            "- 대화 기록은 자동으로 저장됩니다\n"
-            "- PDF 파일을 업로드하여 분석할 수 있습니다"
-        ),
+        "help_tips_content": """
+- 구체적인 질문일수록 정확한 답변
+- "다시 설명해줘", "더 자세히" 등으로 추가 요청
+- 대화 기록은 자동으로 저장됩니다
+- PDF 파일을 업로드하여 분석할 수 있습니다
+        """,
         
         # Footer
         "powered_by": "✨ Powered by",
@@ -231,12 +231,12 @@ TEXTS = {
 - Complex requests are processed step by step
         """,
         "help_tips": "**Useful Tips** 💡",
-        "help_tips_content": (
-            "- More specific questions get more accurate answers\n"
-            "- Use 'explain again', 'more details' for follow-up requests\n"
-            "- Chat history is automatically saved\n"
-            "- You can upload PDF files for analysis"
-        ),
+        "help_tips_content": """
+- More specific questions get more accurate answers
+- Use "explain again", "more details" for follow-up requests
+- Chat history is automatically saved
+- You can upload PDF files for analysis
+        """,
         
         # Footer
         "powered_by": "✨ Powered by",
@@ -349,12 +349,12 @@ TEXTS = {
 - Las solicitudes complejas se procesan paso a paso
         """,
         "help_tips": "**Consejos Útiles** 💡",
-        "help_tips_content": (
-            "- Las preguntas más específicas obtienen respuestas más precisas\n"
-            "- Usa 'explica de nuevo', 'más detalles' para solicitudes adicionales\n"
-            "- El historial de chat se guarda automáticamente\n"
-            "- Puedes subir archivos PDF para análisis"
-        ),
+        "help_tips_content": """
+- Las preguntas más específicas obtienen respuestas más precisas
+- Usa "explica de nuevo", "más detalles" para solicitudes adicionales
+- El historial de chat se guarda automáticamente
+- Puedes subir archivos PDF para análisis
+        """,
         
         # Footer
         "powered_by": "✨ Desarrollado por",
