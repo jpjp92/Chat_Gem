@@ -226,9 +226,6 @@ TEXTS = {
 - Ask questions in natural language
 - Previous conversation context is remembered
 - Complex requests are processed step by step
-        """,
-        "help_tips": "**Useful Tips** 💡",
-        "help_tips_content": """
 - More specific questions get more accurate answers
 - Use "explain again", "more details" for follow-up requests
 - Chat history is automatically saved
@@ -344,9 +341,6 @@ TEXTS = {
 - Haz preguntas en lenguaje natural
 - Se recuerda el contexto de conversaciones anteriores
 - Las solicitudes complejas se procesan paso a paso
-        """,
-        "help_tips": "**Consejos Útiles** 💡",
-        "help_tips_content": """
 - Las preguntas más específicas obtienen respuestas más precisas
 - Usa "explica de nuevo", "más detalles" para solicitudes adicionales
 - El historial de chat se guarda automáticamente
