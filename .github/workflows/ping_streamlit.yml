@@ -1,112 +1,150 @@
-name: Keep Streamlit App Awake
+name: Enhanced Streamlit Keep Awake
 
 on:
   schedule:
-    - cron: "0 * * * *"    # 매시간 정각 실행 (UTC 기준)
-  workflow_dispatch:        # 수동 실행 허용
+    - cron: "*/45 * * * *"  # 45분마다 실행 (더 자주)
+  workflow_dispatch:
 
 env:
-  # 권장: 실제 URL은 GitHub Secrets에 STREAMLIT_URL로 저장
   STREAMLIT_URL: ${{ secrets.STREAMLIT_URL }}
-  # Optional: multiple URLs (comma separated). If set, this takes precedence over STREAMLIT_URL
   STREAMLIT_URLS: ${{ secrets.STREAMLIT_URLS }}
-  # Optional Slack webhook for notifications
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  ping:
+  enhanced-ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Multi-URL ping & health checks
+      - name: Enhanced Streamlit Keep-Awake
         run: |
-          # Accept either STREAMLIT_URLS (comma-separated) or single STREAMLIT_URL
+          # URL 설정
           URLS="$STREAMLIT_URLS"
           if [ -z "$URLS" ]; then
             URLS="$STREAMLIT_URL"
           fi
-          # Fallback to a default list if no secrets provided
           if [ -z "$URLS" ]; then
             URLS="https://assistant-gemini25.streamlit.app,https://mbti-multi.streamlit.app,https://ko-chat-bot25.streamlit.app"
-            echo "No secrets set — falling back to default URL list."
+            echo "Using default URL list"
           fi
 
           if [ -z "$URLS" ]; then
-            echo "No URL provided in STREAMLIT_URLS or STREAMLIT_URL secrets."
+            echo "No URLs configured"
             exit 1
           fi
 
           IFS=',' read -ra ADDR <<< "$URLS"
           FAILED=()
 
-          check_one() {
+          enhanced_check() {
             raw="$1"
-            # trim spaces
             URL=$(echo "$raw" | sed -e 's/^\s*//' -e 's/\s*$//')
             URL="${URL%/}"
-            echo "\n--- Checking: $URL ---"
+            echo "\n=== Enhanced check for: $URL ==="
 
-            echo "Quick ping -> $URL"
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 60 "$URL" || echo "000")
-            echo "Response code: $http_code"
-            if [[ "$http_code" =~ ^[23] ]]; then
-              if [[ "$http_code" =~ ^3 ]]; then
-                echo "⚠️ Redirect response (HTTP $http_code) — app may require login but host is responding."
-              else
-                echo "✅ App is awake (HTTP $http_code)"
-              fi
-            else
-              echo "❌ App returned HTTP $http_code"
-            fi
+            # 1. 초기 요청으로 앱 깨우기
+            echo "Step 1: Initial wake-up request"
+            curl -s -L --max-time 30 \
+              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+              -H "Accept-Language: en-US,en;q=0.5" \
+              -H "Cache-Control: no-cache" \
+              "$URL" > /dev/null || true
 
-            # Health check with retry
+            # 2. 짧은 대기
+            echo "Waiting 5 seconds..."
+            sleep 5
+
+            # 3. 정적 리소스 요청들 (더 현실적인 브라우저 행동 모방)
+            echo "Step 2: Requesting static resources"
+            curl -s -L --max-time 20 \
+              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+              "$URL/_stcore/static/css/bootstrap.min.css" > /dev/null 2>&1 || true
+            
+            curl -s -L --max-time 20 \
+              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+              "$URL/favicon.ico" > /dev/null 2>&1 || true
+
+            # 4. 메인 헬스 체크
+            echo "Step 3: Main health check"
             max_attempts=3
-            attempt=1
-            wait_seconds=30
             success=0
-            while [ $attempt -le $max_attempts ]; do
-              echo "Attempt $attempt/$max_attempts -> $URL"
-              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 60 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
-              echo "HTTP $http_code"
+            
+            for attempt in $(seq 1 $max_attempts); do
+              echo "Health check attempt $attempt/$max_attempts"
+              
+              # 더 긴 타임아웃과 현실적인 헤더들
+              response=$(curl -s -L --max-time 45 \
+                -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
+                -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
+                -H "Accept-Language: en-US,en;q=0.9" \
+                -H "Accept-Encoding: gzip, deflate, br" \
+                -H "DNT: 1" \
+                -H "Connection: keep-alive" \
+                -H "Upgrade-Insecure-Requests: 1" \
+                "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0")
+
+              http_code=$(echo "$response" | sed -n 's/.*HTTPSTATUS:\([0-9]*\).*/\1/p')
+              time_total=$(echo "$response" | sed -n 's/.*TIME:\([0-9.]*\).*/\1/p')
+              
+              echo "HTTP: $http_code, Time: ${time_total}s"
+              
               if [[ "$http_code" =~ ^[23] ]]; then
                 if [[ "$http_code" =~ ^3 ]]; then
-                  echo "⚠️ Redirect on attempt $attempt (HTTP $http_code) — host responding."
+                  echo "⚠️  Redirect response (HTTP $http_code) - host responding"
                 else
-                  echo "✅ Success on attempt $attempt (HTTP $http_code)"
+                  echo "✅ Success (HTTP $http_code)"
                 fi
                 success=1
                 break
               else
-                echo "⚠️ Attempt $attempt failed ($http_code)"
+                echo "❌ Failed attempt $attempt (HTTP $http_code)"
                 if [ $attempt -lt $max_attempts ]; then
-                  echo "⏳ Waiting $wait_seconds seconds..."
-                  sleep $wait_seconds
+                  echo "⏳ Waiting 10 seconds before retry..."
+                  sleep 10
                 fi
               fi
-              attempt=$((attempt + 1))
             done
 
-            if [ $success -eq 0 ]; then
+            # 5. 추가 인터랙션 시뮬레이션
+            if [ $success -eq 1 ]; then
+              echo "Step 4: Simulating user interaction"
+              # Streamlit 특화 요청들
+              curl -s --max-time 15 \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+                "$URL/_stcore/health" > /dev/null 2>&1 || true
+                
+              sleep 2
+              
+              # 한 번 더 메인 페이지 요청
+              curl -s -L --max-time 20 \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+                -H "Referer: $URL" \
+                "$URL" > /dev/null 2>&1 || true
+                
+              echo "✅ Enhanced check completed for $URL"
+            else
               echo "❌ All attempts failed for $URL"
               FAILED+=("$URL")
             fi
           }
 
+          # 모든 URL에 대해 향상된 체크 실행
           for raw in "${ADDR[@]}"; do
-            check_one "$raw"
+            enhanced_check "$raw"
+            # URL 간 간격
+            sleep 3
           done
 
+          # 결과 처리
           if [ ${#FAILED[@]} -ne 0 ]; then
-            echo "\nFailed URLs: ${FAILED[*]}"
-            # Optional Slack notification from here
-            SLACK_WEBHOOK="$SLACK_WEBHOOK"
+            echo "\n❌ Failed URLs: ${FAILED[*]}"
             if [ -n "$SLACK_WEBHOOK" ]; then
-              text="[Keep-Awake] The following URLs failed health check: ${FAILED[*]}"
-              payload="{\"text\":\"${text}\"}"
+              timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
+              text="🚨 *Streamlit Keep-Awake Alert*\n\n*Time:* $timestamp\n*Failed URLs:* ${FAILED[*]}\n\nThese apps may have gone to sleep and need attention."
+              payload="{\"text\":\"$text\"}"
               curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
-            else
-              echo "No SLACK_WEBHOOK set; skipping Slack notification."
             fi
             exit 1
           else
-            echo "\nAll URLs OK"
+            echo "\n✅ All URLs are healthy and awake!"
           fi
