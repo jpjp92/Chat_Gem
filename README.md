@@ -96,11 +96,20 @@ Open your browser and navigate to `http://localhost:8501` to access the applicat
 Chat_Gem/
 ├── app.py               # Main application file
 ├── config/
+│   ├── __init__.py       # Python package initializer
+│   ├── dashboard.py    # Dashboard UI components
 │   ├── env.py          # Environment variable configuration
 │   ├── imports.py      # Library imports
+│   ├── lang.py         # Language settings
+│   ├── login.py        # Login page UI and logic
+│   ├── logincss.py     # CSS for login page
 │   ├── prompts.py      # Gemini prompts and functions
+│   ├── session_manager.py # User session management
+│   ├── storage_utils.py # Cloud storage utilities
 │   ├── style.py        # Custom CSS styles
+│   ├── usage_manager.py # Usage tracking
 │   ├── utils.py        # Utility functions
+│   ├── validators.py   # Input validators
 ├── .env                # Environment variables (e.g., API key)
 ├── README.md           # Project documentation
 ```
