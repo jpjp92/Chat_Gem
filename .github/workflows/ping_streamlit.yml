@@ -63,17 +63,17 @@ jobs:
               -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
               "$URL/favicon.ico" > /dev/null 2>&1 || true
 
-            # 4. 메인 헬스 체크
-            echo "Step 3: Main health check"
+            # 4. 메인 헬스 체크 (상세 디버깅)
+            echo "Step 3: Main health check with detailed debugging"
             max_attempts=3
             success=0
             
             for attempt in $(seq 1 $max_attempts); do
               echo "Health check attempt $attempt/$max_attempts"
               
-              # 더 긴 타임아웃과 현실적인 헤더들
+              # 상세한 curl 정보 수집
               response=$(curl -s -L --max-time 45 \
-                -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" \
+                -w "HTTPSTATUS:%{http_code};TIME:%{time_total};REDIRECT:%{redirect_url};EFFECTIVE:%{url_effective}" \
                 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
                 -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
                 -H "Accept-Language: en-US,en;q=0.9" \
@@ -81,12 +81,22 @@ jobs:
                 -H "DNT: 1" \
                 -H "Connection: keep-alive" \
                 -H "Upgrade-Insecure-Requests: 1" \
-                "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0")
+                "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0;REDIRECT:;EFFECTIVE:")
 
               http_code=$(echo "$response" | sed -n 's/.*HTTPSTATUS:\([0-9]*\).*/\1/p')
               time_total=$(echo "$response" | sed -n 's/.*TIME:\([0-9.]*\).*/\1/p')
+              redirect_url=$(echo "$response" | sed -n 's/.*REDIRECT:\([^;]*\).*/\1/p')
+              effective_url=$(echo "$response" | sed -n 's/.*EFFECTIVE:\([^;]*\).*/\1/p')
               
               echo "HTTP: $http_code, Time: ${time_total}s"
+              echo "Original URL: $URL"
+              echo "Effective URL: $effective_url"
+              echo "Redirect URL: $redirect_url"
+              
+              # 추가 검증: 실제 HTTP 응답 헤더 확인
+              echo "Getting response headers..."
+              headers=$(curl -I -s --max-time 20 "$URL" | head -5)
+              echo "Response headers: $headers"
               
               if [[ "$http_code" =~ ^[23] ]]; then
                 if [[ "$http_code" =~ ^3 ]]; then
