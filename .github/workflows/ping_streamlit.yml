@@ -46,7 +46,7 @@ jobs:
             echo "\n--- Checking: $URL ---"
 
             echo "Quick ping -> $URL"
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 "$URL" || echo "000")
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 60 "$URL" || echo "000")
             echo "Response code: $http_code"
             if [[ "$http_code" =~ ^[23] ]]; then
               if [[ "$http_code" =~ ^3 ]]; then
@@ -65,7 +65,7 @@ jobs:
             success=0
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt/$max_attempts -> $URL"
-              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 10 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 60 --retry 2 --retry-delay 5 --retry-connrefused "$URL" || echo "000")
               echo "HTTP $http_code"
               if [[ "$http_code" =~ ^[23] ]]; then
                 if [[ "$http_code" =~ ^3 ]]; then
