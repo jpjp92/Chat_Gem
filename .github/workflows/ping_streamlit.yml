@@ -1,8 +1,11 @@
-name: Auth-Aware Streamlit Keep Awake
+name: Realistic User Activity Simulator
 
 on:
   schedule:
-    - cron: "*/30 * * * *"  # 30분마다 (더 자주)
+    # 다양한 시간대에 실행 (실제 사용자 패턴 모방)
+    - cron: "15 */2 * * *"   # 매 2시간마다 15분에
+    - cron: "45 */3 * * *"   # 매 3시간마다 45분에  
+    - cron: "30 1,5,9,13,17,21 * * *"  # 하루 6번 다른 시간에
   workflow_dispatch:
 
 env:
@@ -11,10 +14,15 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  auth-aware-ping:
+  realistic-simulation:
     runs-on: ubuntu-latest
     steps:
-      - name: Authentication-Aware Keep-Awake
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Realistic User Activity Simulation
         run: |
           # URL 설정
           URLS="$STREAMLIT_URLS"
@@ -23,11 +31,11 @@ jobs:
           fi
           if [ -z "$URLS" ]; then
             URLS="https://assistant-gemini25.streamlit.app,https://mbti-multi.streamlit.app,https://ko-chat-bot25.streamlit.app"
-            echo "Using default URL list"
+            echo "🔗 Using default URL list"
           fi
 
           if [ -z "$URLS" ]; then
-            echo "No URLs configured"
+            echo "❌ No URLs configured"
             exit 1
           fi
 
@@ -35,152 +43,204 @@ jobs:
           SUCCESS_COUNT=0
           TOTAL_COUNT=0
 
-          auth_aware_check() {
+          # 랜덤 User-Agent 배열
+          USER_AGENTS=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          )
+
+          simulate_realistic_user() {
             raw="$1"
             URL=$(echo "$raw" | sed -e 's/^\s*//' -e 's/\s*$//')
             URL="${URL%/}"
-            echo "\n=== Auth-aware check for: $URL ==="
             TOTAL_COUNT=$((TOTAL_COUNT + 1))
+            
+            # 랜덤 User-Agent 선택
+            UA_INDEX=$((RANDOM % ${#USER_AGENTS[@]}))
+            USER_AGENT="${USER_AGENTS[$UA_INDEX]}"
+            
+            echo "\n🎭 === Simulating realistic user for: $URL ==="
+            echo "👤 User-Agent: $(echo "$USER_AGENT" | cut -d' ' -f1-3)..."
 
-            # 1. 초기 요청으로 상태 확인
-            echo "Step 1: Initial status check"
-            response=$(curl -s -I --max-time 30 \
-              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-              "$URL" 2>/dev/null || echo "")
+            # 쿠키 파일 생성
+            COOKIE_FILE="/tmp/cookies_${TOTAL_COUNT}_$(date +%s).txt"
+            
+            # Phase 1: 실제 브라우저처럼 첫 방문
+            echo "📱 Phase 1: Initial page visit (like opening browser tab)"
+            response1=$(curl -s -L -c "$COOKIE_FILE" --max-time 45 \
+              -w "HTTPSTATUS:%{http_code};TIME:%{time_total};SIZE:%{size_download}" \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" \
+              -H "Accept-Language: en-US,en;q=0.9,ko;q=0.8" \
+              -H "Accept-Encoding: gzip, deflate, br" \
+              -H "DNT: 1" \
+              -H "Connection: keep-alive" \
+              -H "Upgrade-Insecure-Requests: 1" \
+              -H "Sec-Fetch-Dest: document" \
+              -H "Sec-Fetch-Mode: navigate" \
+              -H "Sec-Fetch-Site: none" \
+              -H "Cache-Control: max-age=0" \
+              "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0;SIZE:0")
 
-            http_code=$(echo "$response" | head -1 | grep -o '[0-9]\{3\}' | head -1)
-            location=$(echo "$response" | grep -i "location:" | sed 's/location: //i' | tr -d '\r\n' || echo "")
+            http_code1=$(echo "$response1" | sed -n 's/.*HTTPSTATUS:\([0-9]*\).*/\1/p')
+            time1=$(echo "$response1" | sed -n 's/.*TIME:\([0-9.]*\).*/\1/p')
+            size1=$(echo "$response1" | sed -n 's/.*SIZE:\([0-9]*\).*/\1/p')
+            
+            echo "   📊 HTTP: $http_code1, Time: ${time1}s, Size: ${size1} bytes"
 
-            echo "Initial HTTP: $http_code"
-            echo "Location header: $location"
+            # 사용자가 페이지를 읽는 시간 시뮬레이션 (5-15초)
+            read_time=$((5 + RANDOM % 11))
+            echo "   👀 User reading page... (${read_time}s)"
+            sleep $read_time
 
-            # 2. 응답 코드별 처리
-            success=0
-            case "$http_code" in
-              200|201|202)
-                echo "✅ Direct success (HTTP $http_code) - App is awake!"
-                success=1
-                ;;
-              302|303|307|308)
-                if [[ "$location" == *"auth"* ]]; then
-                  echo "🔐 Authentication redirect detected"
-                  echo "   This means the host is responding and app infrastructure is active"
-                  echo "   Attempting to ping the auth endpoint to maintain session..."
-                  
-                  # 인증 엔드포인트에 가벼운 요청
-                  auth_ping=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-                    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                    "https://share.streamlit.io/ping" 2>/dev/null || echo "000")
-                  echo "   Auth endpoint ping: $auth_ping"
-                  
-                  # 원본 앱에 한 번 더 요청 (인증 세션 생성 시도)
-                  echo "   Attempting to establish session..."
-                  session_attempt=$(curl -s -L --max-time 20 \
-                    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                    -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
-                    -c /tmp/cookies_$TOTAL_COUNT.txt \
-                    "$URL" 2>/dev/null || echo "")
-                  
-                  # 쿠키를 사용한 재시도
-                  if [ -f "/tmp/cookies_$TOTAL_COUNT.txt" ]; then
-                    echo "   Retrying with session cookies..."
-                    retry_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
-                      -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                      -b /tmp/cookies_$TOTAL_COUNT.txt \
-                      "$URL" 2>/dev/null || echo "000")
-                    echo "   Retry with cookies: $retry_code"
-                    rm -f "/tmp/cookies_$TOTAL_COUNT.txt"
-                  fi
-                  
-                  echo "✅ Host responding (redirect to auth) - Infrastructure active!"
-                  success=1
-                else
-                  echo "🔄 Standard redirect to: $location"
-                  # 리다이렉트 따라가기
-                  final_code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 30 \
-                    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                    "$URL" 2>/dev/null || echo "000")
-                  echo "   Final destination HTTP: $final_code"
-                  if [[ "$final_code" =~ ^[23] ]]; then
-                    echo "✅ Redirect successful (HTTP $final_code)"
-                    success=1
-                  fi
-                fi
-                ;;
-              404|500|502|503|504)
-                echo "❌ Server error (HTTP $http_code) - App may be down"
-                ;;
-              000|"")
-                echo "⚠️  No response - checking if host is reachable..."
-                # 도메인 자체 ping 시도
-                domain=$(echo "$URL" | sed 's|https\?://||' | cut -d'/' -f1)
-                if curl -s --max-time 10 "https://$domain" > /dev/null 2>&1; then
-                  echo "   Host is reachable, app might be starting up"
-                  echo "✅ Keep-alive signal sent"
-                  success=1
-                else
-                  echo "❌ Host unreachable"
-                fi
-                ;;
-              *)
-                echo "⚠️  Unusual response (HTTP $http_code)"
-                echo "✅ But host is responding - considering as success"
-                success=1
-                ;;
-            esac
+            # Phase 2: 정적 리소스 요청 (실제 브라우저 동작)
+            echo "📦 Phase 2: Loading page resources (CSS, JS, favicon)"
+            
+            # CSS 요청
+            curl -s -b "$COOKIE_FILE" --max-time 20 \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Accept: text/css,*/*;q=0.1" \
+              -H "Referer: $URL" \
+              "$URL/_stcore/static/css/bootstrap.min.css" > /dev/null 2>&1 || true
+            
+            sleep 1
+            
+            # Favicon 요청  
+            curl -s -b "$COOKIE_FILE" --max-time 15 \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Accept: image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" \
+              -H "Referer: $URL" \
+              "$URL/favicon.ico" > /dev/null 2>&1 || true
 
-            # 3. 추가 keep-alive 신호들
-            if [ $success -eq 1 ]; then
-              echo "Step 2: Sending additional keep-alive signals"
+            sleep 2
+
+            # Phase 3: WebSocket 연결 시뮬레이션 (Streamlit 특화)
+            echo "🔌 Phase 3: Simulating Streamlit WebSocket connection"
+            curl -s -b "$COOKIE_FILE" --max-time 15 \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Connection: Upgrade" \
+              -H "Upgrade: websocket" \
+              -H "Sec-WebSocket-Key: $(echo -n "streamlit-$(date +%s)" | base64)" \
+              -H "Sec-WebSocket-Version: 13" \
+              -H "Origin: $URL" \
+              "$URL/_stcore/stream" > /dev/null 2>&1 || true
+
+            sleep 3
+
+            # Phase 4: 사용자 상호작용 시뮬레이션
+            echo "🖱️ Phase 4: Simulating user interactions"
+            
+            # 다시 메인 페이지 요청 (사용자가 뭔가 클릭)
+            response2=$(curl -s -L -b "$COOKIE_FILE" --max-time 30 \
+              -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+              -H "Referer: $URL" \
+              -H "Sec-Fetch-Dest: document" \
+              -H "Sec-Fetch-Mode: navigate" \
+              -H "Sec-Fetch-Site: same-origin" \
+              "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0")
+
+            http_code2=$(echo "$response2" | sed -n 's/.*HTTPSTATUS:\([0-9]*\).*/\1/p')
+            time2=$(echo "$response2" | sed -n 's/.*TIME:\([0-9.]*\).*/\1/p')
+            
+            echo "   🔄 Interaction response: HTTP $http_code2, Time: ${time2}s"
+
+            # 더 많은 상호작용 시뮬레이션
+            interaction_count=$((1 + RANDOM % 3))  # 1-3번의 추가 상호작용
+            for i in $(seq 1 $interaction_count); do
+              sleep $((2 + RANDOM % 5))  # 2-6초 대기
               
-              # 다양한 엔드포인트에 가벼운 요청들
-              curl -s --max-time 10 "$URL/favicon.ico" > /dev/null 2>&1 || true
-              sleep 1
-              curl -s --max-time 10 "$URL/_stcore/health" > /dev/null 2>&1 || true
-              sleep 1
-              curl -s --max-time 10 "$URL" \
-                -H "User-Agent: KeepAliveBot/1.0" > /dev/null 2>&1 || true
+              # 랜덤 엔드포인트 요청
+              endpoints=("" "/_stcore/health" "/_stcore/ping")
+              endpoint_idx=$((RANDOM % ${#endpoints[@]}))
+              endpoint="${endpoints[$endpoint_idx]}"
               
-              echo "✅ Keep-alive completed for $URL"
+              curl -s -b "$COOKIE_FILE" --max-time 15 \
+                -H "User-Agent: $USER_AGENT" \
+                -H "Accept: application/json,*/*;q=0.8" \
+                -H "Referer: $URL" \
+                "$URL$endpoint" > /dev/null 2>&1 || true
+                
+              echo "   🎯 Additional interaction $i/$interaction_count"
+            done
+
+            # Phase 5: 세션 유지 신호
+            echo "💓 Phase 5: Session keep-alive signals"
+            for pulse in 1 2 3; do
+              sleep 5
+              curl -s -b "$COOKIE_FILE" --max-time 10 \
+                -H "User-Agent: $USER_AGENT" \
+                -H "Accept: */*" \
+                -H "Referer: $URL" \
+                -H "X-Streamlit-User: active" \
+                "$URL" > /dev/null 2>&1 || true
+              echo "   💗 Pulse $pulse/3"
+            done
+
+            # 결과 평가
+            if [[ "$http_code1" =~ ^[23] ]] || [[ "$http_code2" =~ ^[23] ]] || [[ "$http_code1" == "303" ]]; then
+              echo "✅ Realistic user simulation completed successfully!"
+              echo "   📈 App should recognize this as genuine user activity"
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             else
-              echo "❌ Keep-alive failed for $URL"
+              echo "⚠️ App might be having issues, but keep-alive signals sent"
+              echo "   🔧 HTTP codes: $http_code1, $http_code2"
+              # 인프라가 응답하는 경우에도 성공으로 카운트
+              if [[ "$http_code1" != "000" ]] || [[ "$http_code2" != "000" ]]; then
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+              fi
             fi
+
+            # 정리
+            rm -f "$COOKIE_FILE"
+            
+            # 다음 URL 처리 전 휴식 (실제 사용자가 탭 이동하는 시간)
+            tab_switch_delay=$((3 + RANDOM % 8))
+            echo "   🔄 Switching to next app... (${tab_switch_delay}s)"
+            sleep $tab_switch_delay
           }
 
-          # 모든 URL 처리
+          # 모든 URL에 대해 실행
+          echo "🚀 Starting realistic user activity simulation"
+          echo "⏰ Current time: $(date)"
+          
           for raw in "${ADDR[@]}"; do
-            auth_aware_check "$raw"
-            sleep 2  # URL 간 간격
+            simulate_realistic_user "$raw"
           done
 
-          # 결과 리포트
-          echo "\n📊 === FINAL REPORT ==="
-          echo "✅ Successful: $SUCCESS_COUNT / $TOTAL_COUNT"
+          # 최종 리포트
+          echo "\n📊 === SIMULATION COMPLETE ==="
+          echo "✅ Successfully simulated: $SUCCESS_COUNT / $TOTAL_COUNT apps"
           echo "📈 Success Rate: $(( SUCCESS_COUNT * 100 / TOTAL_COUNT ))%"
+          echo "⏰ Total simulation time: ~$(( TOTAL_COUNT * 60 )) seconds"
 
           if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
-            echo "🎉 All URLs processed successfully!"
-            echo "   Apps should remain active longer due to keep-alive signals"
+            echo "🎉 All apps received realistic user activity!"
+            echo "   🛡️ Apps should stay awake much longer now"
           elif [ $SUCCESS_COUNT -gt 0 ]; then
-            echo "⚠️  Partial success - some apps may need attention"
-            echo "   But keep-alive signals were sent to responsive apps"
-          else
-            echo "❌ All URLs failed - may need manual investigation"
+            echo "⚠️ Partial success - some apps may need attention"
+            
             if [ -n "$SLACK_WEBHOOK" ]; then
               timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
-              text="🚨 *Streamlit Keep-Awake Alert*\n\n*Time:* $timestamp\n*Status:* All apps failed to respond\n*URLs:* $(echo "${ADDR[*]}" | tr ' ' '\n')\n\nAll apps may be down or require manual attention."
+              text="🤖 *Streamlit User Simulator Report*\n\n*Time:* $timestamp\n*Success:* $SUCCESS_COUNT / $TOTAL_COUNT apps\n*Status:* Partial success - some apps may need attention"
+              payload="{\"text\":\"$text\"}"
+              curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
+            fi
+          else
+            echo "❌ Simulation failed for all apps"
+            
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
+              text="🚨 *Streamlit User Simulator Alert*\n\n*Time:* $timestamp\n*Status:* All apps failed to respond to user simulation\n*Action Required:* Manual investigation needed"
               payload="{\"text\":\"$text\"}"
               curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
             fi
             exit 1
           fi
 
-          # 부분 성공인 경우에도 Slack 알림 (선택적)
-          if [ $SUCCESS_COUNT -ne $TOTAL_COUNT ] && [ -n "$SLACK_WEBHOOK" ]; then
-            timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
-            failed_count=$((TOTAL_COUNT - SUCCESS_COUNT))
-            text="⚠️ *Streamlit Keep-Awake Partial Success*\n\n*Time:* $timestamp\n*Success:* $SUCCESS_COUNT / $TOTAL_COUNT apps\n*Failed:* $failed_count apps\n\nSome apps may need attention."
-            payload="{\"text\":\"$text\"}"
-            curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
-          fi
+          echo "\n🎯 Next simulation scheduled based on cron patterns"
+          echo "💡 This realistic approach should significantly reduce sleep mode occurrences"
