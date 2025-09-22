@@ -1,4 +1,4 @@
-name: Realistic User Activity Simulator
+name: Simplified User Activity Simulator
 
 on:
   schedule:
@@ -9,10 +9,9 @@ on:
 env:
   STREAMLIT_URL: ${{ secrets.STREAMLIT_URL }}
   STREAMLIT_URLS: ${{ secrets.STREAMLIT_URLS }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  realistic-simulation:
+  simplified-simulation:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
@@ -20,7 +19,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Realistic User Activity Simulation
+      - name: Simplified User Activity Simulation
         run: |
           # URL 설정
           URLS="$STREAMLIT_URLS"
@@ -46,11 +45,10 @@ jobs:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           )
 
-          simulate_realistic_user() {
+          simulate_simple_user() {
             raw="$1"
             URL=$(echo "$raw" | sed -e 's/^\s*//' -e 's/\s*$//')
             URL="${URL%/}"
@@ -60,26 +58,17 @@ jobs:
             UA_INDEX=$((RANDOM % ${#USER_AGENTS[@]}))
             USER_AGENT="${USER_AGENTS[$UA_INDEX]}"
             
-            echo "\n🎭 === Simulating realistic user for: $URL ==="
+            echo "\n🎭 === Simple user simulation for: $URL ==="
             echo "👤 User-Agent: $(echo "$USER_AGENT" | cut -d' ' -f1-3)..."
 
-            # 쿠키 파일 생성
-            COOKIE_FILE="/tmp/cookies_${TOTAL_COUNT}_$(date +%s).txt"
-            
-            # Phase 1: 실제 브라우저처럼 첫 방문
-            echo "📱 Phase 1: Initial page visit (like opening browser tab)"
-            response1=$(curl -s -L -c "$COOKIE_FILE" --max-time 45 \
+            # Phase 1: 메인 페이지 방문
+            echo "📱 Phase 1: Main page visit"
+            response1=$(curl -s -L --max-time 30 \
               -w "HTTPSTATUS:%{http_code};TIME:%{time_total};SIZE:%{size_download}" \
               -H "User-Agent: $USER_AGENT" \
-              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" \
+              -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
               -H "Accept-Language: en-US,en;q=0.9,ko;q=0.8" \
-              -H "Accept-Encoding: gzip, deflate, br" \
-              -H "DNT: 1" \
               -H "Connection: keep-alive" \
-              -H "Upgrade-Insecure-Requests: 1" \
-              -H "Sec-Fetch-Dest: document" \
-              -H "Sec-Fetch-Mode: navigate" \
-              -H "Sec-Fetch-Site: none" \
               -H "Cache-Control: max-age=0" \
               "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0;SIZE:0")
 
@@ -89,57 +78,30 @@ jobs:
             
             echo "   📊 HTTP: $http_code1, Time: ${time1}s, Size: ${size1} bytes"
 
-            # 사용자가 페이지를 읽는 시간 시뮬레이션 (5-15초)
-            read_time=$((5 + RANDOM % 11))
-            echo "   👀 User reading page... (${read_time}s)"
+            # 사용자 페이지 읽기 시뮬레이션 (3-8초)
+            read_time=$((3 + RANDOM % 6))
+            echo "   👀 User reading... (${read_time}s)"
             sleep $read_time
 
-            # Phase 2: 정적 리소스 요청 (실제 브라우저 동작)
-            echo "📦 Phase 2: Loading page resources (CSS, JS, favicon)"
+            # Phase 2: 간단한 리소스 요청
+            echo "📦 Phase 2: Basic resource loading"
             
-            # CSS 요청
-            curl -s -b "$COOKIE_FILE" --max-time 20 \
+            # Favicon 요청만 (가장 일반적)
+            curl -s --max-time 10 \
               -H "User-Agent: $USER_AGENT" \
-              -H "Accept: text/css,*/*;q=0.1" \
-              -H "Referer: $URL" \
-              "$URL/_stcore/static/css/bootstrap.min.css" > /dev/null 2>&1 || true
-            
-            sleep 1
-            
-            # Favicon 요청  
-            curl -s -b "$COOKIE_FILE" --max-time 15 \
-              -H "User-Agent: $USER_AGENT" \
-              -H "Accept: image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" \
+              -H "Accept: image/*,*/*;q=0.8" \
               -H "Referer: $URL" \
               "$URL/favicon.ico" > /dev/null 2>&1 || true
 
             sleep 2
 
-            # Phase 3: WebSocket 연결 시뮬레이션 (Streamlit 특화)
-            echo "🔌 Phase 3: Simulating Streamlit WebSocket connection"
-            curl -s -b "$COOKIE_FILE" --max-time 15 \
-              -H "User-Agent: $USER_AGENT" \
-              -H "Connection: Upgrade" \
-              -H "Upgrade: websocket" \
-              -H "Sec-WebSocket-Key: $(echo -n "streamlit-$(date +%s)" | base64)" \
-              -H "Sec-WebSocket-Version: 13" \
-              -H "Origin: $URL" \
-              "$URL/_stcore/stream" > /dev/null 2>&1 || true
-
-            sleep 3
-
-            # Phase 4: 사용자 상호작용 시뮬레이션
-            echo "🖱️ Phase 4: Simulating user interactions"
-            
-            # 다시 메인 페이지 요청 (사용자가 뭔가 클릭)
-            response2=$(curl -s -L -b "$COOKIE_FILE" --max-time 30 \
+            # Phase 3: 한 번의 추가 상호작용
+            echo "🖱️ Phase 3: User interaction"
+            response2=$(curl -s -L --max-time 20 \
               -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" \
               -H "User-Agent: $USER_AGENT" \
               -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
               -H "Referer: $URL" \
-              -H "Sec-Fetch-Dest: document" \
-              -H "Sec-Fetch-Mode: navigate" \
-              -H "Sec-Fetch-Site: same-origin" \
               "$URL" 2>/dev/null || echo "HTTPSTATUS:000;TIME:0")
 
             http_code2=$(echo "$response2" | sed -n 's/.*HTTPSTATUS:\([0-9]*\).*/\1/p')
@@ -147,98 +109,58 @@ jobs:
             
             echo "   🔄 Interaction response: HTTP $http_code2, Time: ${time2}s"
 
-            # 더 많은 상호작용 시뮬레이션
-            interaction_count=$((1 + RANDOM % 3))  # 1-3번의 추가 상호작용
-            for i in $(seq 1 $interaction_count); do
-              sleep $((2 + RANDOM % 5))  # 2-6초 대기
-              
-              # 랜덤 엔드포인트 요청
-              endpoints=("" "/_stcore/health" "/_stcore/ping")
-              endpoint_idx=$((RANDOM % ${#endpoints[@]}))
-              endpoint="${endpoints[$endpoint_idx]}"
-              
-              curl -s -b "$COOKIE_FILE" --max-time 15 \
-                -H "User-Agent: $USER_AGENT" \
-                -H "Accept: application/json,*/*;q=0.8" \
-                -H "Referer: $URL" \
-                "$URL$endpoint" > /dev/null 2>&1 || true
-                
-              echo "   🎯 Additional interaction $i/$interaction_count"
-            done
-
-            # Phase 5: 세션 유지 신호
-            echo "💓 Phase 5: Session keep-alive signals"
-            for pulse in 1 2 3; do
-              sleep 5
-              curl -s -b "$COOKIE_FILE" --max-time 10 \
-                -H "User-Agent: $USER_AGENT" \
-                -H "Accept: */*" \
-                -H "Referer: $URL" \
-                -H "X-Streamlit-User: active" \
-                "$URL" > /dev/null 2>&1 || true
-              echo "   💗 Pulse $pulse/3"
-            done
+            # Phase 4: 간단한 세션 유지 (1회만)
+            echo "💓 Phase 4: Simple keep-alive"
+            sleep 5
+            curl -s --max-time 10 \
+              -H "User-Agent: $USER_AGENT" \
+              -H "Accept: */*" \
+              -H "Referer: $URL" \
+              "$URL" > /dev/null 2>&1 || true
+            echo "   💗 Keep-alive signal sent"
 
             # 결과 평가
             if [[ "$http_code1" =~ ^[23] ]] || [[ "$http_code2" =~ ^[23] ]] || [[ "$http_code1" == "303" ]]; then
-              echo "✅ Realistic user simulation completed successfully!"
-              echo "   📈 App should recognize this as genuine user activity"
+              echo "✅ Simple user simulation completed successfully!"
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             else
-              echo "⚠️ App might be having issues, but keep-alive signals sent"
+              echo "⚠️ App might be having issues"
               echo "   🔧 HTTP codes: $http_code1, $http_code2"
-              # 인프라가 응답하는 경우에도 성공으로 카운트
+              # 응답이 있으면 성공으로 카운트
               if [[ "$http_code1" != "000" ]] || [[ "$http_code2" != "000" ]]; then
                 SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
               fi
             fi
 
-            # 정리
-            rm -f "$COOKIE_FILE"
-            
-            # 다음 URL 처리 전 휴식 (실제 사용자가 탭 이동하는 시간)
-            tab_switch_delay=$((3 + RANDOM % 8))
-            echo "   🔄 Switching to next app... (${tab_switch_delay}s)"
+            # 다음 URL 처리 전 휴식 (2-5초)
+            tab_switch_delay=$((2 + RANDOM % 4))
+            echo "   🔄 Next app in ${tab_switch_delay}s..."
             sleep $tab_switch_delay
           }
 
           # 모든 URL에 대해 실행
-          echo "🚀 Starting realistic user activity simulation"
+          echo "🚀 Starting simplified user activity simulation"
           echo "⏰ Current time: $(date)"
           
           for raw in "${ADDR[@]}"; do
-            simulate_realistic_user "$raw"
+            simulate_simple_user "$raw"
           done
 
           # 최종 리포트
           echo "\n📊 === SIMULATION COMPLETE ==="
           echo "✅ Successfully simulated: $SUCCESS_COUNT / $TOTAL_COUNT apps"
           echo "📈 Success Rate: $(( SUCCESS_COUNT * 100 / TOTAL_COUNT ))%"
-          echo "⏰ Total simulation time: ~$(( TOTAL_COUNT * 60 )) seconds"
+          echo "⏰ Total simulation time: ~$(( TOTAL_COUNT * 20 )) seconds"
 
           if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
-            echo "🎉 All apps received realistic user activity!"
-            echo "   🛡️ Apps should stay awake much longer now"
+            echo "🎉 All apps received simple user activity!"
+            echo "   🛡️ Apps should stay awake with minimal resource usage"
           elif [ $SUCCESS_COUNT -gt 0 ]; then
             echo "⚠️ Partial success - some apps may need attention"
-            
-            if [ -n "$SLACK_WEBHOOK" ]; then
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
-              text="🤖 *Streamlit User Simulator Report*\n\n*Time:* $timestamp\n*Success:* $SUCCESS_COUNT / $TOTAL_COUNT apps\n*Status:* Partial success - some apps may need attention"
-              payload="{\"text\":\"$text\"}"
-              curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
-            fi
           else
             echo "❌ Simulation failed for all apps"
-            
-            if [ -n "$SLACK_WEBHOOK" ]; then
-              timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
-              text="🚨 *Streamlit User Simulator Alert*\n\n*Time:* $timestamp\n*Status:* All apps failed to respond to user simulation\n*Action Required:* Manual investigation needed"
-              payload="{\"text\":\"$text\"}"
-              curl -s -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK" || true
-            fi
             exit 1
           fi
 
-          echo "\n🎯 Next simulation scheduled based on cron patterns"
-          echo "💡 This realistic approach should significantly reduce sleep mode occurrences"
+          echo "\n🎯 Next simple simulation in 6 hours"
+          echo "💡 Lightweight approach should reduce mobile access delays"
