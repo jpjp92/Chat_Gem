@@ -3,9 +3,7 @@ name: Realistic User Activity Simulator
 on:
   schedule:
     # 다양한 시간대에 실행 (실제 사용자 패턴 모방)
-    - cron: "15 */2 * * *"   # 매 2시간마다 15분에
-    - cron: "45 */3 * * *"   # 매 3시간마다 45분에  
-    - cron: "30 1,5,9,13,17,21 * * *"  # 하루 6번 다른 시간에
+    - cron: "15 */6 * * *"   # 매 6시간마다 15분에
   workflow_dispatch:
 
 env:
