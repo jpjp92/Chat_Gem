@@ -115,16 +115,9 @@ st.set_page_config(
 # Apply custom CSS
 st.markdown(GEMINI_CUSTOM_CSS, unsafe_allow_html=True)
 
-# API key validation 
-if not GEMINI_API_KEY:
-    st.error(get_text("api_key_error", st.session_state.get("system_language", "ko")))
-    st.stop()
-
-try:
-    genai.configure(api_key=GEMINI_API_KEY)
-except Exception as e:
-    st.error(get_text("api_error", st.session_state.get("system_language", "ko"), str(e)))
-    st.stop()
+# NOTE: GEMINI API key configuration is moved into `main()` to avoid
+# running network-sensitive initialization at import time which can
+# delay the initial Streamlit load (especially on mobile or cold starts).
 
 # `create_or_get_user` and `show_login_page` moved to `config/login.py`
 
@@ -194,6 +187,12 @@ def detect_response_language(user_input: str, system_language: str) -> str:
 
 def create_model_for_language(language: str):
     """특정 언어에 맞는 Gemini 모델을 생성합니다"""
+    # Ensure genai is configured before creating model (lazy init)
+    try:
+        ensure_genai_configured()
+    except NameError:
+        # If function not yet defined (shouldn't happen), skip and rely on main() configuration
+        pass
     system_prompt = get_system_prompt(language)
     safety_settings = {
         'HARASSMENT': 'BLOCK_NONE',
@@ -240,6 +239,26 @@ The default preferred language is English."""
 {language_guide}"""
     
     return genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt_with_lang, safety_settings=safety_settings)
+
+
+def ensure_genai_configured():
+    """Lazy initialization for genai configuration. Safe to call multiple times."""
+    # Use a module-level flag to avoid reconfiguring
+    if getattr(sys.modules[__name__], "_genai_configured", False):
+        return
+
+    if not GEMINI_API_KEY:
+        logger.warning("GEMINI_API_KEY가 설정되어 있지 않습니다. genai 구성 건너뜀.")
+        return
+
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        setattr(sys.modules[__name__], "_genai_configured", True)
+        logger.info("genai lazy 구성 완료")
+    except Exception as e:
+        logger.error(f"genai.configure 실패: {e}")
+        # don't raise - ensure caller can handle absence of configured genai
+        return
 
 def show_chat_dashboard():
     """기존 채팅 대쉬보드 표시 (다국어 적용)"""
@@ -743,6 +762,9 @@ def show_chat_dashboard():
 def main():
     """메인 함수"""
     initialize_session_state()
+    # Configure Gemini API key at runtime (after Streamlit session state is ready)
+    ensure_genai_configured()
+
     if not st.session_state.is_logged_in:
         show_login_page()
     else:
