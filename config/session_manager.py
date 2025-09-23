@@ -7,6 +7,11 @@ import io
 import json
 from config.storage_utils import save_chat_history_to_supabase, load_chat_history_from_supabase, get_chat_sessions_from_supabase, upload_image_to_supabase
 from config.imports import st, logger, Image, datetime, re, supabase
+import os
+
+# Quick runtime toggle to skip Supabase session/history operations for testing
+# Set environment variable SKIP_SUPABASE_LOAD=1 to skip Supabase calls at startup
+SKIP_SUPABASE_LOAD = os.environ.get("SKIP_SUPABASE_LOAD", "0") == "1"
 import base64
 from config.lang import get_text  # get_text 함수 임포트 추가
 import time
@@ -64,7 +69,7 @@ def initialize_session_state():
     # 로그인 상태인데 현재 세션이 없으면 세션 목록 로드 후 첫 세션 열기
     if st.session_state.is_logged_in and not st.session_state.current_session_id:
         # Supabase에서 사용자의 세션 목록 가져오기
-        if st.session_state.user_id and supabase:
+        if st.session_state.user_id and supabase and not SKIP_SUPABASE_LOAD:
             try:
                 debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
                 t0 = time.perf_counter() if debug_timings else None
@@ -243,7 +248,7 @@ def load_session(session_id):
             break
             
     # Supabase에서 세션 로드 (로그인된 사용자인 경우)
-    if st.session_state.is_logged_in and st.session_state.user_id and supabase:
+    if st.session_state.is_logged_in and st.session_state.user_id and supabase and not SKIP_SUPABASE_LOAD:
         try:
             debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
             t0 = time.perf_counter() if debug_timings else None
@@ -297,7 +302,7 @@ def delete_session(session_id):
     st.session_state.chat_sessions = [s for s in st.session_state.chat_sessions if s["id"] != session_id]
     
     # Supabase에서 세션 삭제
-    if st.session_state.is_logged_in and st.session_state.user_id and supabase:
+    if st.session_state.is_logged_in and st.session_state.user_id and supabase and not SKIP_SUPABASE_LOAD:
         try:
             # 채팅 이력 삭제
             debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
@@ -309,6 +314,10 @@ def delete_session(session_id):
             logger.info(f"세션 삭제 완료: {session_id}")
         except Exception as e:
             logger.error(f"세션 삭제 오류: {str(e)}")
+    else:
+        # Supabase 호출을 건너뛰는 토글이 켜져 있으면 로그만 남김
+        if SKIP_SUPABASE_LOAD:
+            logger.info("SKIP_SUPABASE_LOAD=1: Supabase session/history operations skipped")
     
     # 현재 세션이 삭제된 세션이면 다른 세션 로드 또는 새 세션 생성
     if st.session_state.current_session_id == session_id:
