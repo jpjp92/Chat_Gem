@@ -772,19 +772,21 @@ def main():
     if debug_timings:
         t_after_init = time.perf_counter()
 
-    # Configure Gemini API key at runtime (after Streamlit session state is ready)
-    if debug_timings:
-        t_before_genai = time.perf_counter()
-    ensure_genai_configured()
-    if debug_timings:
-        t_after_genai = time.perf_counter()
+    # NOTE: Defer genai configuration until it's actually needed (user logged in
+    # and chat dashboard is shown). This avoids any genai-related initialization
+    # during the initial render/login page which can delay mobile cold starts.
 
     if not st.session_state.is_logged_in:
         if debug_timings:
             logger.info(f"TIMING: initialize_session_state took {t_after_init - t_start:.4f}s")
         show_login_page()
     else:
+        # Configure genai lazily now that user is authenticated and chat UI will be rendered
         if debug_timings:
+            t_before_genai = time.perf_counter()
+        ensure_genai_configured()
+        if debug_timings:
+            t_after_genai = time.perf_counter()
             logger.info(f"TIMING: genai configuration took {t_after_genai - t_before_genai:.4f}s")
             logger.info(f"TIMING: total pre-render time {(time.perf_counter() - t_start):.4f}s")
         show_chat_dashboard()
