@@ -558,6 +558,8 @@ def is_pdf_summarization_request(text: str) -> tuple[bool, Optional[str]]:
 def fetch_webpage_content(url: str) -> str:
     """웹페이지 내용 가져오기 (개선된 버전)"""
     try:
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+        t0 = time.perf_counter() if debug_timings else None
         session = requests.Session()
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -568,6 +570,9 @@ def fetch_webpage_content(url: str) -> str:
         
         response = session.get(url, timeout=15)
         response.raise_for_status()
+        if debug_timings:
+            t1 = time.perf_counter()
+            logger.info(f"TIMING: fetch_webpage_content GET {url} took {t1 - t0:.4f}s")
         
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -608,8 +613,13 @@ def fetch_webpage_content(url: str) -> str:
 def extract_webpage_metadata(url: str, content: str) -> Dict[str, str]:
     """웹페이지 메타데이터 추출"""
     try:
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+        t0 = time.perf_counter() if debug_timings else None
         response = requests.get(url, timeout=10)
         response.raise_for_status()
+        if debug_timings:
+            t1 = time.perf_counter()
+            logger.info(f"TIMING: extract_webpage_metadata GET {url} took {t1 - t0:.4f}s")
         
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -661,9 +671,14 @@ def extract_webpage_metadata(url: str, content: str) -> Dict[str, str]:
 def fetch_pdf_text(pdf_url: str = None, pdf_file=None) -> tuple[str, Dict, Optional[Dict]]:
     """PDF 내용 가져오기 (URL 또는 파일 입력 지원)"""
     try:
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+        t0 = time.perf_counter() if debug_timings else None
         if pdf_url:
             response = requests.get(pdf_url, timeout=10)
             response.raise_for_status()
+            if debug_timings:
+                t1 = time.perf_counter()
+                logger.info(f"TIMING: fetch_pdf_text GET {pdf_url} took {t1 - t0:.4f}s")
             if 'application/pdf' not in response.headers.get('Content-Type', '').lower():
                 logger.error(f"URL이 PDF 형식이 아님: {pdf_url}")
                 return f"❌ URL은 PDF 파일이 아닙니다: {pdf_url}", {}, None
