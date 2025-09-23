@@ -95,16 +95,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Supabase client initialization
+# Supabase: `config.imports` provides a LazySupabase instance named `supabase`.
+# Avoid creating a real client at import time to prevent network calls during
+# Streamlit cold starts (especially on mobile). The LazySupabase will
+# initialize the real client on first use.
 try:
     if SUPABASE_URL and SUPABASE_KEY:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        logger.info("Supabase 클라이언트 초기화 성공")
+        logger.info("Supabase configured for lazy initialization")
     else:
-        supabase = None
         logger.warning("Supabase 환경 변수 누락")
 except Exception as e:
-    supabase = None
-    logger.error(f"Supabase 연결 실패: {e}")
+    logger.error(f"Supabase 연결 초기화 경고: {e}")
 
 # Page configuration  
 st.set_page_config(
