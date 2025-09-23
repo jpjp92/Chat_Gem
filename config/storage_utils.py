@@ -6,6 +6,7 @@ import os
 import hashlib
 from datetime import datetime, timezone
 from PIL import Image
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-images", user_id=None):
     try:
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
         image_file.seek(0)
         file_bytes = image_file.read()
         logger.info(f"업로드 데이터 크기: {len(file_bytes)} 바이트")
@@ -54,11 +56,15 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
         logger.info(f"업로드 옵션: {upload_options}")
         
         # 업로드 시도
+        t0 = time.perf_counter() if debug_timings else None
         upload_response = supabase_client.storage.from_(bucket_name).upload(
             path=hash_filename,
             file=file_bytes,
             file_options=upload_options
         )
+        if debug_timings:
+            t1 = time.perf_counter()
+            logger.info(f"TIMING: supabase.storage.upload({bucket_name}/{hash_filename}) took {t1 - t0:.4f}s")
         
         logger.info(f"업로드 응답 타입: {type(upload_response)}")
         logger.info(f"업로드 응답: {upload_response}")
@@ -72,7 +78,11 @@ def upload_image_to_supabase(image_file, supabase_client, bucket_name="chat-imag
             else:
                 # 성공한 경우 URL 생성
                 try:
+                    t0_url = time.perf_counter() if debug_timings else None
                     image_url = supabase_client.storage.from_(bucket_name).get_public_url(hash_filename)
+                    if debug_timings:
+                        t1_url = time.perf_counter()
+                        logger.info(f"TIMING: supabase.storage.get_public_url({bucket_name}/{hash_filename}) took {t1_url - t0_url:.4f}s")
                     logger.info(f"업로드 성공, URL: {image_url}")
                     return image_url
                 except Exception as url_error:
@@ -114,14 +124,23 @@ def upload_pdf_to_supabase(pdf_file, supabase_client, bucket_name="chat-pdfs"):
         file_bytes = pdf_file.read()
         
         # Supabase Storage에 업로드
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+        t0 = time.perf_counter() if debug_timings else None
         supabase_client.storage.from_(bucket_name).upload(
             path=unique_filename,
             file=file_bytes,
             file_options={"content-type": pdf_file.type}
         )
-        
+        if debug_timings:
+            t1 = time.perf_counter()
+            logger.info(f"TIMING: supabase.storage.upload PDF({bucket_name}/{unique_filename}) took {t1 - t0:.4f}s")
+
         # 업로드된 PDF의 공개 URL 가져오기
+        t0_url = time.perf_counter() if debug_timings else None
         pdf_url = supabase_client.storage.from_(bucket_name).get_public_url(unique_filename)
+        if debug_timings:
+            t1_url = time.perf_counter()
+            logger.info(f"TIMING: supabase.storage.get_public_url PDF({bucket_name}/{unique_filename}) took {t1_url - t0_url:.4f}s")
         
         logger.info(f"PDF 업로드 성공: {unique_filename}")
         return pdf_url
@@ -144,8 +163,14 @@ def save_chat_history_to_supabase(supabase_client, user_id, session_id, messages
         success: 저장 성공 여부
     """
     try:
+        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+        t_total0 = time.perf_counter() if debug_timings else None
         # 기존 채팅 이력 삭제 후 재생성 (업데이트 대신 덮어쓰기 방식)
+        t_del0 = time.perf_counter() if debug_timings else None
         supabase_client.table("chat_history").delete().eq("session_id", session_id).execute()
+        if debug_timings:
+            t_del1 = time.perf_counter()
+            logger.info(f"TIMING: supabase.table.delete chat_history for {session_id} took {t_del1 - t_del0:.4f}s")
         
         # 메시지들을 질문-답변 쌍으로 그룹화
         current_question = None
@@ -178,12 +203,19 @@ def save_chat_history_to_supabase(supabase_client, user_id, session_id, messages
                         message_data["images"] = image_urls
                 
                 # Supabase에 질문-답변 쌍 저장
+                t_ins0 = time.perf_counter() if debug_timings else None
                 supabase_client.table("chat_history").insert(message_data).execute()
+                if debug_timings:
+                    t_ins1 = time.perf_counter()
+                    logger.info(f"TIMING: supabase.table.insert chat_history for {session_id} took {t_ins1 - t_ins0:.4f}s")
                 
                 # 현재 질문 초기화
                 current_question = None
                 current_question_images = None
             
+        if debug_timings:
+            t_total1 = time.perf_counter()
+            logger.info(f"TIMING: save_chat_history_to_supabase total for {session_id} took {t_total1 - t_total0:.4f}s")
         logger.info(f"채팅 이력 저장 성공: 세션 ID {session_id}")
         return True
     
