@@ -33,7 +33,13 @@ def show_login_page():
     """트렌디한 로그인 페이지를 표시하고 사용자 입력을 처리합니다. (이전: app.py)"""
     lang = st.session_state.get("system_language", "ko")
 
-    st.markdown(TRENDY_LOGIN_CSS, unsafe_allow_html=True)
+    # Optionally skip heavy login CSS/JS for faster mobile cold starts
+    SKIP_LOGIN_CSS = os.environ.get("SKIP_LOGIN_CSS", "0") == "1"
+    if not SKIP_LOGIN_CSS:
+        st.markdown(TRENDY_LOGIN_CSS, unsafe_allow_html=True)
+    else:
+        # Minimal inline styles to keep layout usable without heavy effects
+        st.markdown("<style>.block-container{padding-top:1rem !important;} .stApp{background:#0f0f11;}</style>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown(f"""
