@@ -766,15 +766,7 @@ def main():
     """메인 함수"""
     debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
 
-    # Quick early-render indicator: helps determine whether the Streamlit
-    # frontend is able to render any content before heavier initialization.
-    try:
-        early_container = st.container()
-        with early_container:
-            st.markdown("<small style='opacity:0.6'>early-render: initializing...</small>", unsafe_allow_html=True)
-    except Exception:
-        # If Streamlit front-end cannot render this, it may be blocked at a lower level
-        pass
+    # (early-render indicator removed)
 
     if debug_timings:
         t_start = time.perf_counter()
