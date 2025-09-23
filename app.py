@@ -253,11 +253,11 @@ def ensure_genai_configured():
         return
 
     try:
-        start = time.time()
+        start = time.perf_counter()
         genai.configure(api_key=GEMINI_API_KEY)
-        elapsed = time.time() - start
+        elapsed = time.perf_counter() - start
         setattr(sys.modules[__name__], "_genai_configured", True)
-        logger.info(f"genai lazy 구성 완료 (configure took {elapsed:.2f}s)")
+        logger.info(f"genai lazy 구성 완료 (configure took {elapsed:.4f}s)")
     except Exception as e:
         logger.error(f"genai.configure 실패: {e}")
         # don't raise - ensure caller can handle absence of configured genai
@@ -766,26 +766,26 @@ def main():
     debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
 
     if debug_timings:
-        t_start = time.time()
+        t_start = time.perf_counter()
     initialize_session_state()
     if debug_timings:
-        t_after_init = time.time()
+        t_after_init = time.perf_counter()
 
     # Configure Gemini API key at runtime (after Streamlit session state is ready)
     if debug_timings:
-        t_before_genai = time.time()
+        t_before_genai = time.perf_counter()
     ensure_genai_configured()
     if debug_timings:
-        t_after_genai = time.time()
+        t_after_genai = time.perf_counter()
 
     if not st.session_state.is_logged_in:
         if debug_timings:
-            logger.info(f"TIMING: initialize_session_state took {t_after_init - t_start:.2f}s")
+            logger.info(f"TIMING: initialize_session_state took {t_after_init - t_start:.4f}s")
         show_login_page()
     else:
         if debug_timings:
-            logger.info(f"TIMING: genai configuration took {t_after_genai - t_before_genai:.2f}s")
-            logger.info(f"TIMING: total pre-render time {(time.time() - t_start):.2f}s")
+            logger.info(f"TIMING: genai configuration took {t_after_genai - t_before_genai:.4f}s")
+            logger.info(f"TIMING: total pre-render time {(time.perf_counter() - t_start):.4f}s")
         show_chat_dashboard()
 
 if __name__ == "__main__":

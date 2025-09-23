@@ -5,9 +5,12 @@ import uuid
 import os
 import io
 import json
-from config.storage_utils import save_chat_history_to_supabase, load_chat_history_from_supabase, get_chat_sessions_from_supabase
+from config.storage_utils import save_chat_history_to_supabase, load_chat_history_from_supabase, get_chat_sessions_from_supabase, upload_image_to_supabase
 from config.imports import st, logger, Image, datetime, re, supabase
+import base64
 from config.lang import get_text  # get_text 함수 임포트 추가
+import time
+import os
 
 def initialize_session_state():
     """세션 상태 초기화"""
@@ -63,8 +66,13 @@ def initialize_session_state():
         # Supabase에서 사용자의 세션 목록 가져오기
         if st.session_state.user_id and supabase:
             try:
+                debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+                t0 = time.perf_counter() if debug_timings else None
                 # Supabase에서 세션 목록 로드
                 supabase_sessions = get_chat_sessions_from_supabase(supabase, st.session_state.user_id)
+                if debug_timings:
+                    t1 = time.perf_counter()
+                    logger.info(f"TIMING: get_chat_sessions_from_supabase took {t1 - t0:.4f}s")
                 
                 if supabase_sessions:
                     # 로컬 세션 목록에 추가 (기존에 없는 세션만)
@@ -237,8 +245,13 @@ def load_session(session_id):
     # Supabase에서 세션 로드 (로그인된 사용자인 경우)
     if st.session_state.is_logged_in and st.session_state.user_id and supabase:
         try:
+            debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+            t0 = time.perf_counter() if debug_timings else None
             # Supabase에서 채팅 이력 로드
             messages = load_chat_history_from_supabase(supabase, session_id)
+            if debug_timings:
+                t1 = time.perf_counter()
+                logger.info(f"TIMING: load_chat_history_from_supabase({session_id}) took {t1 - t0:.4f}s")
             
             if messages:
                 # 로컬 세션이 없는 경우 새로 생성
@@ -287,7 +300,12 @@ def delete_session(session_id):
     if st.session_state.is_logged_in and st.session_state.user_id and supabase:
         try:
             # 채팅 이력 삭제
+            debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+            t0 = time.perf_counter() if debug_timings else None
             supabase.table("chat_history").delete().eq("session_id", session_id).execute()
+            if debug_timings:
+                t1 = time.perf_counter()
+                logger.info(f"TIMING: supabase.delete chat_history for {session_id} took {t1 - t0:.4f}s")
             logger.info(f"세션 삭제 완료: {session_id}")
         except Exception as e:
             logger.error(f"세션 삭제 오류: {str(e)}")
