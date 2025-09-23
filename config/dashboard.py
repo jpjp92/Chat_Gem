@@ -139,7 +139,7 @@ def show_chat_dashboard():
 
     with st.sidebar:
         st.header(get_text("settings", lang))
-        if st.button(get_text("new_chat", lang), key="new_chat", help=get_text("new_chat_help", lang), use_container_width=True):
+        if st.button(get_text("new_chat", lang), key="new_chat", help=get_text("new_chat_help", lang), width='stretch'):
             create_new_chat_session()
             st.rerun()
 
@@ -220,30 +220,30 @@ def show_chat_dashboard():
         with st.expander(get_text("quick_functions", lang), expanded=False):
             col1, col2 = st.columns(2)
             with col1:
-                if st.button(get_text("export", lang), key="export_quick", help=get_text("export_help", lang), use_container_width=True):
+                if st.button(get_text("export", lang), key="export_quick", help=get_text("export_help", lang), width='stretch'):
                     try:
                         export_data = export_chat_session()
                         if export_data:
-                            st.download_button(label=get_text("download", lang), data=export_data, file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json", mime="application/json", key="download_json", use_container_width=True)
+                            st.download_button(label=get_text("download", lang), data=export_data, file_name=f"chat_{datetime.now().strftime('%m%d_%H%M')}.json", mime="application/json", key="download_json", width='stretch')
                         else:
                             st.error(get_text("no_export_data", lang))
                     except Exception as e:
                         st.error(get_text("export_failed", lang))
             with col2:
-                if st.button(get_text("delete_all", lang), key="clear_all", help=get_text("delete_all_help", lang), use_container_width=True):
+                if st.button(get_text("delete_all", lang), key="clear_all", help=get_text("delete_all_help", lang), width='stretch'):
                     if st.session_state.chat_sessions:
                         st.markdown("---")
                         confirm = st.checkbox(get_text("confirm_delete", lang), key="confirm_delete_checkbox")
                         if confirm:
                             col_yes, col_no = st.columns(2)
                             with col_yes:
-                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary", use_container_width=True):
+                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary", width='stretch'):
                                     st.session_state.chat_sessions = []
                                     create_new_chat_session()
                                     st.success(get_text("all_chats_deleted", lang))
                                     st.rerun()
                             with col_no:
-                                if st.button(get_text("confirm_no", lang), key="cancel_clear", use_container_width=True):
+                                if st.button(get_text("confirm_no", lang), key="cancel_clear", width='stretch'):
                                     st.session_state.confirm_delete_checkbox = False
                                     st.rerun()
 
