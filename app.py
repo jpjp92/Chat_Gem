@@ -17,7 +17,7 @@ from config.style import GEMINI_CUSTOM_CSS
 # Set CSS for login page
 from config.logincss import TRENDY_LOGIN_CSS
 
-# Import lang module for multi-language support (개선된 함수들 포함)
+# Import lang module for multi-language support
 from config.lang import (
     get_text,
     get_language_options,
@@ -26,7 +26,6 @@ from config.lang import (
     get_lang_code_from_option,
     is_supported_language,
     SUPPORTED_LANGUAGES,
-    # 개선된 언어 감지 함수들 추가
     detect_language,
     handle_language_switching,
     detect_dominant_language,
@@ -94,7 +93,7 @@ from config.login import show_login_page, create_or_get_user
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Supabase 클라이언트 초기화
+# Supabase client initialization
 try:
     if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -116,7 +115,7 @@ st.set_page_config(
 # Apply custom CSS
 st.markdown(GEMINI_CUSTOM_CSS, unsafe_allow_html=True)
 
-# API key validation (다국어 적용)
+# API key validation 
 if not GEMINI_API_KEY:
     st.error(get_text("api_key_error", st.session_state.get("system_language", "ko")))
     st.stop()
@@ -133,7 +132,7 @@ def detect_response_language(user_input: str, system_language: str) -> str:
     """사용자 입력에서 응답 언어를 감지합니다 (한국어/영어/스페인어 지원)"""
     user_input_lower = user_input.lower().strip()
     
-    # 1. 명시적 언어 요청 감지 (최우선)
+    # 1. 명시적 언어 요청 감지 
     if any(phrase in user_input_lower for phrase in ["한국어로", "in korean", "en coreano"]):
         return "ko"
     elif any(phrase in user_input_lower for phrase in ["in english", "영어로", "en inglés"]):
