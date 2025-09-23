@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Set library imports
@@ -252,9 +253,11 @@ def ensure_genai_configured():
         return
 
     try:
+        start = time.time()
         genai.configure(api_key=GEMINI_API_KEY)
+        elapsed = time.time() - start
         setattr(sys.modules[__name__], "_genai_configured", True)
-        logger.info("genai lazy 구성 완료")
+        logger.info(f"genai lazy 구성 완료 (configure took {elapsed:.2f}s)")
     except Exception as e:
         logger.error(f"genai.configure 실패: {e}")
         # don't raise - ensure caller can handle absence of configured genai
@@ -760,13 +763,29 @@ def show_chat_dashboard():
 
 def main():
     """메인 함수"""
+    debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
+
+    if debug_timings:
+        t_start = time.time()
     initialize_session_state()
+    if debug_timings:
+        t_after_init = time.time()
+
     # Configure Gemini API key at runtime (after Streamlit session state is ready)
+    if debug_timings:
+        t_before_genai = time.time()
     ensure_genai_configured()
+    if debug_timings:
+        t_after_genai = time.time()
 
     if not st.session_state.is_logged_in:
+        if debug_timings:
+            logger.info(f"TIMING: initialize_session_state took {t_after_init - t_start:.2f}s")
         show_login_page()
     else:
+        if debug_timings:
+            logger.info(f"TIMING: genai configuration took {t_after_genai - t_before_genai:.2f}s")
+            logger.info(f"TIMING: total pre-render time {(time.time() - t_start):.2f}s")
         show_chat_dashboard()
 
 if __name__ == "__main__":
