@@ -823,6 +823,8 @@ def show_chat_dashboard():
                     
                     # ✨ 웹 검색 필요 여부 판단 및 실행 (날씨 API 실패 시 폴백)
                     search_context = ""
+                    all_search_queries = []  # 검색할 쿼리 목록
+                    
                     if st.session_state.api_manager:
                         try:
                             web_search_api = st.session_state.api_manager['apis']['web_search']
@@ -839,20 +841,52 @@ def show_chat_dashboard():
                                 reason = "날씨 API 폴백"
                             
                             if need_search:
-                                status.update(label="🔍 최신 정보 검색 중...")
-                                logger.info(f"🔍 웹 검색 실행: {reason}")
-                                search_result = web_search_api.search_and_create_context(
-                                    user_input, 
-                                    st.session_state
-                                )
+                                # 🔍 비교/차이 질문 사전 분석: 양쪽 모두 검색
+                                comparison_keywords = ['차이', '비교', 'vs', 'versus', '다른점', 'difference', 'compare', 'comparison']
+                                is_comparison = any(kw in user_input.lower() for kw in comparison_keywords)
                                 
-                                # 검색 결과를 컨텍스트로 추가
-                                if not search_result.startswith("검색이 필요하지 않음"):
-                                    search_context = f"\n\n[최신 검색 정보]\n{search_result}\n\n"
-                                    logger.info(f"✅ 검색 완료: {len(search_result)} chars")
-                                    # 디버그: 검색 결과 미리보기
-                                    preview = search_result[:300] + "..." if len(search_result) > 300 else search_result
-                                    logger.info(f"📄 검색 결과 미리보기:\n{preview}")
+                                if is_comparison:
+                                    logger.info("🔍 비교 질문 감지: 다중 검색 준비")
+                                    
+                                    # 비교 대상 추출 (버전 번호, 모델명 등)
+                                    # 패턴 1: "A와 B 차이" → A, B 추출
+                                    and_pattern = r'([가-힣a-z0-9\s\.\-]+)(?:와|과|랑|하고|vs|versus)\s*([가-힣a-z0-9\s\.\-]+)\s*(?:차이|비교|다른점)'
+                                    match = re.search(and_pattern, user_input.lower())
+                                    
+                                    if match:
+                                        target_a = match.group(1).strip()
+                                        target_b = match.group(2).strip()
+                                        
+                                        # 각 대상에 대해 개별 검색 쿼리 생성
+                                        all_search_queries.append(f"{target_a} 특징 정보")
+                                        all_search_queries.append(f"{target_b} 특징 정보")
+                                        logger.info(f"📋 비교 대상 추출: [{target_a}] vs [{target_b}]")
+                                    else:
+                                        # 패턴 매칭 실패 시 원본 쿼리로 검색
+                                        all_search_queries.append(user_input)
+                                else:
+                                    # 일반 검색: 원본 쿼리 사용
+                                    all_search_queries.append(user_input)
+                                
+                                # 모든 검색 쿼리 실행
+                                all_results = []
+                                for idx, query in enumerate(all_search_queries):
+                                    status.update(label=f"🔍 검색 중... ({idx + 1}/{len(all_search_queries)})")
+                                    logger.info(f"🔍 웹 검색 실행 [{idx + 1}/{len(all_search_queries)}]: {query}")
+                                    
+                                    search_result = web_search_api.search_and_create_context(
+                                        query, 
+                                        st.session_state
+                                    )
+                                    
+                                    if not search_result.startswith("검색이 필요하지 않음"):
+                                        all_results.append(f"\n[검색 {idx + 1}: {query}]\n{search_result}")
+                                        logger.info(f"✅ 검색 완료 [{idx + 1}]: {len(search_result)} chars")
+                                
+                                # 모든 검색 결과 통합
+                                if all_results:
+                                    search_context = "\n\n[최신 검색 정보]\n" + "\n\n---\n\n".join(all_results) + "\n\n"
+                                    logger.info(f"✅ 전체 검색 완료: {len(all_results)}개 쿼리, {len(search_context)} chars")
                             else:
                                 logger.info(f"⏭️ 검색 불필요: {reason}")
                         except Exception as e:
@@ -876,85 +910,6 @@ def show_chat_dashboard():
                             status.update(label=get_text("processing_response", response_language))
                             response = chat_session.send_message(final_input).text
                             st.session_state.chat_history = chat_session.history
-                            
-                            # 🔍 자동 보완 검색: 모델이 정보 부족을 감지하면 추가 검색 실행
-                            need_followup_search = False
-                            followup_query = None
-                            
-                            # 정보 부족 감지 패턴
-                            insufficient_patterns = [
-                                r'정보.*?부족',
-                                r'찾기.*?어렵',
-                                r'명확.*?비교.*?어렵',
-                                r'직접.*?비교.*?내용.*?없',
-                                r'추가.*?검색',
-                                r'더.*?자세.*?알아보',
-                            ]
-                            
-                            for pattern in insufficient_patterns:
-                                if re.search(pattern, response):
-                                    need_followup_search = True
-                                    logger.info(f"🔍 정보 부족 감지: {pattern}")
-                                    break
-                            
-                            # 비교/차이 질문인데 한 쪽만 나온 경우
-                            comparison_keywords = ['차이', '비교', 'vs', 'versus', '다른점', 'difference', 'compare']
-                            if any(kw in user_input.lower() for kw in comparison_keywords):
-                                # 원본 질문에서 비교 대상 추출 시도
-                                # 예: "클로드 3.0과 4.5 차이" → "3.0", "4.5" 추출
-                                version_pattern = r'(\d+\.?\d*)'
-                                versions = re.findall(version_pattern, user_input)
-                                if len(versions) >= 2:
-                                    # 첫 번째 버전만 검색에서 나왔는지 확인
-                                    first_version_in_response = versions[0] in response
-                                    second_version_in_response = versions[1] in response
-                                    
-                                    if first_version_in_response and not second_version_in_response:
-                                        # 두 번째 버전 정보 부족 → 추가 검색
-                                        model_name_match = re.search(r'(claude|gpt|gemini|llama|iphone|galaxy|macbook)', 
-                                                                     user_input.lower())
-                                        if model_name_match:
-                                            model_name = model_name_match.group(1)
-                                            followup_query = f"{model_name} {versions[1]} 특징 정보"
-                                            need_followup_search = True
-                                            logger.info(f"🔍 비교 대상 누락 감지: {followup_query}")
-                            
-                            # 추가 검색 실행
-                            if need_followup_search and st.session_state.api_manager:
-                                try:
-                                    web_search_api = st.session_state.api_manager['apis']['web_search']
-                                    
-                                    # 자동 생성된 쿼리가 없으면 원본 쿼리 재사용
-                                    if not followup_query:
-                                        followup_query = user_input
-                                    
-                                    status.update(label="🔍 추가 정보 검색 중...")
-                                    logger.info(f"🔄 자동 보완 검색 시작: {followup_query}")
-                                    
-                                    followup_result = web_search_api.search_and_create_context(
-                                        followup_query,
-                                        st.session_state
-                                    )
-                                    
-                                    if not followup_result.startswith("검색이 필요하지 않음"):
-                                        # 추가 검색 결과로 재답변 생성
-                                        enhanced_prompt = f"""
-{response}
-
-[추가 검색 정보]
-{followup_result}
-
-위 추가 정보를 바탕으로 사용자의 원래 질문("{user_input}")에 대해 더 완전한 답변을 제공해주세요.
-특히 비교/차이점 질문인 경우 양쪽 모두를 상세히 설명해주세요.
-"""
-                                        status.update(label="✨ 보완 답변 생성 중...")
-                                        enhanced_response = chat_session.send_message(enhanced_prompt).text
-                                        response = enhanced_response
-                                        st.session_state.chat_history = chat_session.history
-                                        logger.info(f"✅ 자동 보완 검색 완료: {len(followup_result)} chars")
-                                except Exception as e:
-                                    logger.error(f"❌ 자동 보완 검색 오류: {e}")
-                                    # 보완 검색 실패해도 기존 응답은 유지
                             
                         except Exception as e:
                             logger.error(f"Google Generative AI 서비스 오류: {e}")
