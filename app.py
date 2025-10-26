@@ -849,8 +849,6 @@ def show_chat_dashboard():
                             if need_search:
                                 # 3단계: 비교 질문이면 다중 검색 쿼리 생성
                                 if is_comparison:
-                                
-                                if is_comparison:
                                     logger.info("🔍 비교 질문 감지: 다중 검색 준비")
                                     
                                     # 비교 대상 추출 (버전 번호, 모델명 등)
