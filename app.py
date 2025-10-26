@@ -851,14 +851,30 @@ def show_chat_dashboard():
                                 if is_comparison:
                                     logger.info("🔍 비교 질문 감지: 다중 검색 준비")
                                     
-                                    # 비교 대상 추출 (버전 번호, 모델명 등)
-                                    # 패턴 1: "A와/과/랑 B 차이/비교" 형태
-                                    and_pattern = r'([가-힣a-z0-9\s\.\-]+?)\s*(?:와|과|랑|하고|vs|versus)\s+([가-힣a-z0-9\s\.\-]+?)\s+(?:차이점?|비교|다른점)'
-                                    match = re.search(and_pattern, user_input.lower())
+                                    # 비교 대상 추출 (버전 번호, 모델명 등) - 다국어 지원
+                                    # 여러 패턴 시도
+                                    patterns = [
+                                        # 패턴 1: "A [접속사] B [비교키워드]" (한국어/vs)
+                                        r'([가-힣a-z0-9\s\.\-]+?)\s*(?:와|과|랑|하고|vs|versus)\s+([가-힣a-z0-9\s\.\-]+?)\s+(?:차이점?|비교|다른점|difference|compare|comparison|diferencia|comparación)',
+                                        # 패턴 2: "[비교키워드] A and/y B" (영어/스페인어)
+                                        r'(?:compare|difference|diferencia|comparación)\s+(?:between\s+)?([a-z0-9\s\.\-]+?)\s+(?:and|y)\s+([a-z0-9\s\.\-]+?)(?:\s|$)',
+                                        # 패턴 3: "A and/y B [비교키워드]" (영어/스페인어)
+                                        r'([a-z0-9\s\.\-]+?)\s+(?:and|y)\s+([a-z0-9\s\.\-]+?)\s+(?:difference|comparison|diferencia|comparación)',
+                                    ]
+                                    
+                                    match = None
+                                    for pattern in patterns:
+                                        match = re.search(pattern, user_input.lower())
+                                        if match:
+                                            break
                                     
                                     if match:
                                         target_a = match.group(1).strip()
                                         target_b = match.group(2).strip()
+                                        
+                                        # 전치사 제거 (스페인어: entre, de / 영어: between, of)
+                                        target_a = re.sub(r'^(entre|between|de|of)\s+', '', target_a)
+                                        target_b = re.sub(r'^(entre|between|de|of)\s+', '', target_b)
                                         
                                         logger.info(f"📋 비교 대상 추출 성공: [{target_a}] vs [{target_b}]")
                                         
@@ -886,9 +902,17 @@ def show_chat_dashboard():
                                             target_b = f"{base_name} {target_b}"
                                             logger.info(f"🔧 대상 B 보정: {target_b}")
                                         
+                                        # 언어별 검색 쿼리 suffix 결정
+                                        if response_language == 'es':
+                                            query_suffix = "características información"  # 스페인어
+                                        elif response_language == 'en':
+                                            query_suffix = "features information"  # 영어
+                                        else:
+                                            query_suffix = "특징 정보"  # 한국어 (기본)
+                                        
                                         # 각 대상에 대해 개별 검색 쿼리 생성
-                                        all_search_queries.append(f"{target_a} 특징 정보")
-                                        all_search_queries.append(f"{target_b} 특징 정보")
+                                        all_search_queries.append(f"{target_a} {query_suffix}")
+                                        all_search_queries.append(f"{target_b} {query_suffix}")
                                     else:
                                         # 패턴 매칭 실패 시 원본 쿼리로 검색
                                         logger.info("⚠️ 비교 대상 추출 실패, 원본 쿼리 사용")
