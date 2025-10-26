@@ -90,6 +90,9 @@ from config.session_manager import initialize_session_state, create_new_chat_ses
 # Login UI moved to config/login.py
 from config.login import show_login_page, create_or_get_user
 
+# Import API manager for web search
+from config.api_manager import initialize_apis
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -729,9 +732,41 @@ def show_chat_dashboard():
                         response = "❌ 이미지 처리 중 오류가 발생했습니다."
                 else:
                     status.update(label=get_text("processing_response", response_language))
+                    
+                    # ✨ 웹 검색 필요 여부 판단 및 실행
+                    search_context = ""
+                    if st.session_state.api_manager:
+                        try:
+                            web_search_api = st.session_state.api_manager['apis']['web_search']
+                            need_search, reason = web_search_api.should_search(user_input)
+                            
+                            if need_search:
+                                status.update(label="🔍 최신 정보 검색 중...")
+                                logger.info(f"🔍 웹 검색 실행: {reason}")
+                                search_result = web_search_api.search_and_create_context(
+                                    user_input, 
+                                    st.session_state
+                                )
+                                
+                                # 검색 결과를 컨텍스트로 추가
+                                if not search_result.startswith("검색이 필요하지 않음"):
+                                    search_context = f"\n\n[최신 검색 정보]\n{search_result}\n\n"
+                                    logger.info(f"✅ 검색 완료: {len(search_result)} chars")
+                            else:
+                                logger.info(f"⏭️ 검색 불필요: {reason}")
+                        except Exception as e:
+                            logger.error(f"❌ 웹 검색 오류: {e}")
+                            # 검색 실패 시에도 일반 대화는 계속 진행
+                    
+                    # 모델에 전달할 최종 프롬프트 생성
+                    final_input = user_input
+                    if search_context:
+                        final_input = f"{search_context}사용자 질문: {user_input}\n\n위 검색 결과를 참고하여 답변해주세요."
+                    
                     chat_session = response_model.start_chat(history=st.session_state.chat_history)
                     try:
-                        response = chat_session.send_message(user_input).text
+                        status.update(label=get_text("processing_response", response_language))
+                        response = chat_session.send_message(final_input).text
                         st.session_state.chat_history = chat_session.history
                     except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
@@ -787,6 +822,17 @@ def main():
         if debug_timings:
             t_before_genai = time.perf_counter()
         ensure_genai_configured()
+        
+        # Initialize API manager (web search, etc.) if not already done
+        if "api_manager" not in st.session_state:
+            try:
+                api_data = initialize_apis()
+                st.session_state.api_manager = api_data
+                logger.info("✅ API Manager 초기화 완료")
+            except Exception as e:
+                logger.error(f"❌ API Manager 초기화 실패: {e}")
+                st.session_state.api_manager = None
+        
         if debug_timings:
             t_after_genai = time.perf_counter()
             logger.info(f"TIMING: genai configuration took {t_after_genai - t_before_genai:.4f}s")
