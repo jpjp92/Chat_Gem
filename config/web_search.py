@@ -107,6 +107,20 @@ class WebSearchAPI:
             return False, "빈 쿼리"
 
         q = query.lower()
+        
+        # 짧은 추가 질문은 검색하지 않음 (이전 대화 컨텍스트 활용)
+        # "온도는?", "습도는?", "얼마야?" 같은 짧은 질문
+        short_followup_patterns = [
+            r'^[가-힣]{1,3}[는은]?\?*$',  # "온도는?", "습도?"
+            r'^[가-힣]{1,5}[요야]?\?*$',  # "얼마야?", "몇도요?"
+            r'^정확한\s*[가-힣]{2,4}',    # "정확한 온도"
+            r'^구체적인\s*[가-힣]{2,4}',  # "구체적인 습도"
+            r'^\w{1,10}\?*$',            # 영어 단어 하나 "temperature?"
+        ]
+        
+        for pattern in short_followup_patterns:
+            if re.search(pattern, q):
+                return False, "추가 질문 (이전 컨텍스트 활용)"
 
         # 키워드 기반 필터 (한국어, 영어, 스페인어)
         realtime_keywords = [
