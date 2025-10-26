@@ -828,8 +828,13 @@ def show_chat_dashboard():
                             web_search_api = st.session_state.api_manager['apis']['web_search']
                             need_search, reason = web_search_api.should_search(user_input)
                             
+                            # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
+                            if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
+                                need_search = False
+                                reason = "날씨 API 성공 (웹 검색 생략)"
+                                logger.info(f"⏭️ {reason}")
                             # 날씨 쿼리이고 OpenWeatherMap API가 실패한 경우 강제 검색
-                            if weather_result is None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
+                            elif weather_result is None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
                                 need_search = True
                                 reason = "날씨 API 폴백"
                             
