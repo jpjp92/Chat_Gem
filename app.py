@@ -752,6 +752,9 @@ def show_chat_dashboard():
                                 if not search_result.startswith("검색이 필요하지 않음"):
                                     search_context = f"\n\n[최신 검색 정보]\n{search_result}\n\n"
                                     logger.info(f"✅ 검색 완료: {len(search_result)} chars")
+                                    # 디버그: 검색 결과 미리보기
+                                    preview = search_result[:300] + "..." if len(search_result) > 300 else search_result
+                                    logger.info(f"📄 검색 결과 미리보기:\n{preview}")
                             else:
                                 logger.info(f"⏭️ 검색 불필요: {reason}")
                         except Exception as e:
