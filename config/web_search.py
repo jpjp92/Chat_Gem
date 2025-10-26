@@ -232,12 +232,15 @@ class WebSearchAPI:
         # 쿼리에서 '검색' 키워드 제거
         clean_query = query.lower().replace("검색", "").strip()
         
-        # 날씨 관련 쿼리에 날짜 추가 (최신 정보 보장)
+        # 날씨 관련 쿼리 개선 (최신 정보 보장)
         weather_keywords = ['날씨', '기온', '온도', '습도', '강수', 'weather', 'temperature', 'tiempo']
         if any(kw in clean_query.lower() for kw in weather_keywords):
-            today = datetime.now().strftime("%Y년 %m월 %d일")
-            clean_query = f"{today} {clean_query}"
-            logger.info(f"날씨 쿼리에 날짜 추가: '{clean_query}'")
+            # 과거 데이터 검색 방지 및 실시간 정보 강조
+            clean_query = clean_query.replace("과거", "").replace("일별", "").replace("past", "")
+            # "현재" 또는 "실시간" 키워드 추가 (과거 데이터 필터링)
+            if "현재" not in clean_query and "실시간" not in clean_query and "current" not in clean_query:
+                clean_query = f"현재 실시간 {clean_query}"
+            logger.info(f"날씨 쿼리 개선: '{clean_query}'")
         
         # 검색 수행
         search_result = self.search_web(clean_query)
