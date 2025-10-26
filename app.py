@@ -862,9 +862,24 @@ def show_chat_dashboard():
                                         
                                         logger.info(f"📋 비교 대상 추출 성공: [{target_a}] vs [{target_b}]")
                                         
-                                        # 모델/제품명 추출 (첫 번째 대상에서)
-                                        base_name_match = re.search(r'(claude|gpt|gemini|llama|iphone|galaxy|pixel|macbook|ios|android)', target_a)
+                                        # 모델/제품명 추출 (첫 번째 대상에서) - 한글 + 영어 지원
+                                        base_name_match = re.search(
+                                            r'(claude|클로드|gpt|지피티|gemini|제미나이|llama|라마|'
+                                            r'iphone|아이폰|galaxy|갤럭시|pixel|픽셀|macbook|맥북|'
+                                            r'ios|android|안드로이드)', 
+                                            target_a
+                                        )
                                         base_name = base_name_match.group(1) if base_name_match else ""
+                                        
+                                        # 한글 → 영어 변환
+                                        name_map = {
+                                            '클로드': 'claude', '지피티': 'gpt', '제미나이': 'gemini', 
+                                            '라마': 'llama', '아이폰': 'iphone', '갤럭시': 'galaxy',
+                                            '픽셀': 'pixel', '맥북': 'macbook', '안드로이드': 'android'
+                                        }
+                                        if base_name in name_map:
+                                            base_name = name_map[base_name]
+                                            logger.info(f"🔤 모델명 변환: {base_name_match.group(1)} → {base_name}")
                                         
                                         # 대상 B가 숫자만 있으면 base_name 추가
                                         if base_name and re.match(r'^[\d\.\s]+$', target_b):
