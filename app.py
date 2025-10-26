@@ -828,6 +828,12 @@ def show_chat_dashboard():
                     if st.session_state.api_manager:
                         try:
                             web_search_api = st.session_state.api_manager['apis']['web_search']
+                            
+                            # 🔍 1단계: 비교/차이 질문 사전 분석 (검색 전에 먼저 판단)
+                            comparison_keywords = ['차이', '비교', 'vs', 'versus', '다른점', 'difference', 'compare', 'comparison']
+                            is_comparison = any(kw in user_input.lower() for kw in comparison_keywords)
+                            
+                            # 2단계: 검색 필요 여부 판단
                             need_search, reason = web_search_api.should_search(user_input)
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
@@ -841,9 +847,8 @@ def show_chat_dashboard():
                                 reason = "날씨 API 폴백"
                             
                             if need_search:
-                                # 🔍 비교/차이 질문 사전 분석: 양쪽 모두 검색
-                                comparison_keywords = ['차이', '비교', 'vs', 'versus', '다른점', 'difference', 'compare', 'comparison']
-                                is_comparison = any(kw in user_input.lower() for kw in comparison_keywords)
+                                # 3단계: 비교 질문이면 다중 검색 쿼리 생성
+                                if is_comparison:
                                 
                                 if is_comparison:
                                     logger.info("🔍 비교 질문 감지: 다중 검색 준비")
