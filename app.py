@@ -849,20 +849,31 @@ def show_chat_dashboard():
                                     logger.info("🔍 비교 질문 감지: 다중 검색 준비")
                                     
                                     # 비교 대상 추출 (버전 번호, 모델명 등)
-                                    # 패턴 1: "A와 B 차이" → A, B 추출
-                                    and_pattern = r'([가-힣a-z0-9\s\.\-]+)(?:와|과|랑|하고|vs|versus)\s*([가-힣a-z0-9\s\.\-]+)\s*(?:차이|비교|다른점)'
+                                    # 패턴 1: "A와/과/랑 B 차이/비교" 형태
+                                    and_pattern = r'([가-힣a-z0-9\s\.\-]+?)\s*(?:와|과|랑|하고|vs|versus)\s+([가-힣a-z0-9\s\.\-]+?)\s+(?:차이점?|비교|다른점)'
                                     match = re.search(and_pattern, user_input.lower())
                                     
                                     if match:
                                         target_a = match.group(1).strip()
                                         target_b = match.group(2).strip()
                                         
+                                        logger.info(f"📋 비교 대상 추출 성공: [{target_a}] vs [{target_b}]")
+                                        
+                                        # 모델/제품명 추출 (첫 번째 대상에서)
+                                        base_name_match = re.search(r'(claude|gpt|gemini|llama|iphone|galaxy|pixel|macbook|ios|android)', target_a)
+                                        base_name = base_name_match.group(1) if base_name_match else ""
+                                        
+                                        # 대상 B가 숫자만 있으면 base_name 추가
+                                        if base_name and re.match(r'^[\d\.\s]+$', target_b):
+                                            target_b = f"{base_name} {target_b}"
+                                            logger.info(f"🔧 대상 B 보정: {target_b}")
+                                        
                                         # 각 대상에 대해 개별 검색 쿼리 생성
                                         all_search_queries.append(f"{target_a} 특징 정보")
                                         all_search_queries.append(f"{target_b} 특징 정보")
-                                        logger.info(f"📋 비교 대상 추출: [{target_a}] vs [{target_b}]")
                                     else:
                                         # 패턴 매칭 실패 시 원본 쿼리로 검색
+                                        logger.info("⚠️ 비교 대상 추출 실패, 원본 쿼리 사용")
                                         all_search_queries.append(user_input)
                                 else:
                                     # 일반 검색: 원본 쿼리 사용
