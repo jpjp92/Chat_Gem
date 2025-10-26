@@ -823,9 +823,9 @@ def show_chat_dashboard():
                             response = chat_session.send_message(final_input).text
                             st.session_state.chat_history = chat_session.history
                         except Exception as e:
-                        logger.error(f"Google Generative AI 서비스 오류: {e}")
-                        response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
-                status.update(label=get_text("processing_complete", response_language), state="complete")
+                            logger.error(f"Google Generative AI 서비스 오류: {e}")
+                            response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
+                    status.update(label=get_text("processing_complete", response_language), state="complete")
 
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.uploaded_images = []
