@@ -778,10 +778,32 @@ def show_chat_dashboard():
                                         matched_city = city_match.group(1)
                                         # 한글이면 영어로 변환, 영어면 capitalize
                                         city_name = city_mapping.get(matched_city, matched_city.title())
+                                        logger.info(f"🌍 정규표현식 매칭: {matched_city} → {city_name}")
                                     else:
-                                        city_name = "Seoul"  # 기본값
-                                    
-                                    logger.info(f"🌍 추출된 도시명: {city_match.group(1) if city_match else '없음'} → 변환: {city_name}")
+                                        # 🤖 AI 모델을 사용한 도시명 추출 (폴백)
+                                        logger.info("🤖 정규표현식 실패 - AI 모델로 도시명 추출 시도")
+                                        try:
+                                            extraction_prompt = f"""다음 질문에서 도시명을 추출하고 영어로 변환해주세요.
+질문: "{user_input}"
+
+도시명이 있으면 영어 도시명만 출력하세요. (예: Seoul, Paris, Tokyo)
+도시명이 없으면 "Seoul"을 출력하세요.
+출력 형식: 도시명만 (추가 설명 없이)"""
+                                            
+                                            temp_model = genai.GenerativeModel("gemini-2.0-flash-exp")
+                                            ai_response = temp_model.generate_content(extraction_prompt).text.strip()
+                                            
+                                            # AI 응답에서 도시명만 추출 (첫 단어 또는 첫 줄)
+                                            city_name = ai_response.split('\n')[0].split()[0].strip()
+                                            
+                                            # 유효성 검사 (알파벳과 공백만 허용)
+                                            if not re.match(r'^[A-Za-z\s]+$', city_name):
+                                                city_name = "Seoul"
+                                            
+                                            logger.info(f"🤖 AI 추출 성공: {ai_response} → {city_name}")
+                                        except Exception as e:
+                                            logger.error(f"❌ AI 도시명 추출 실패: {e}")
+                                            city_name = "Seoul"  # 최종 기본값
                                     
                                     # 내일 날씨 vs 현재 날씨
                                     if "내일" in query_lower or "tomorrow" in query_lower:
