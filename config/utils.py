@@ -611,18 +611,12 @@ def fetch_webpage_content(url: str) -> str:
         return f"❌ 웹페이지 내용을 가져오는 중 오류가 발생했습니다: {str(e)}"
 
 def extract_webpage_metadata(url: str, content: str) -> Dict[str, str]:
-    """웹페이지 메타데이터 추출"""
+    """웹페이지 메타데이터 추출 (이미 가져온 content 사용)"""
     try:
-        debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
-        t0 = time.perf_counter() if debug_timings else None
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        if debug_timings:
-            t1 = time.perf_counter()
-            logger.info(f"TIMING: extract_webpage_metadata GET {url} took {t1 - t0:.4f}s")
-        
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 이미 가져온 content를 사용 (추가 HTTP 요청 불필요)
+        soup = BeautifulSoup(content, 'html.parser')
         
         metadata = {
             "title": "Unknown",

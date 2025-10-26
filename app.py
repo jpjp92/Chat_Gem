@@ -733,12 +733,56 @@ def show_chat_dashboard():
                 else:
                     status.update(label=get_text("processing_response", response_language))
                     
-                    # ✨ 웹 검색 필요 여부 판단 및 실행
+                    # ✨ 날씨 쿼리 우선 처리 (OpenWeatherMap API)
+                    weather_result = None
+                    if st.session_state.api_manager:
+                        weather_api = st.session_state.api_manager['apis'].get('weather')
+                        if weather_api:
+                            query_lower = user_input.lower().replace(" ", "")
+                            
+                            # 날씨 쿼리 감지
+                            if "날씨" in query_lower or "weather" in query_lower or "tiempo" in query_lower:
+                                try:
+                                    status.update(label="🌤️ 날씨 정보 조회 중...")
+                                    
+                                    # 도시명 추출 (간단한 패턴 매칭)
+                                    city_match = re.search(r'(서울|부산|인천|대구|대전|광주|제주|전주|춘천|강릉|경기|서울시|'
+                                                          r'seoul|busan|incheon|daegu|daejeon|gwangju|jeju|'
+                                                          r'tokyo|osaka|beijing|shanghai|new york|london|paris|'
+                                                          r'berlin|madrid|rome|moscow|bangkok|singapore|'
+                                                          r'sydney|melbourne|toronto|vancouver|los angeles|'
+                                                          r'chicago|washington|boston|dubai|hong kong)', 
+                                                          user_input, re.IGNORECASE)
+                                    
+                                    city_name = city_match.group(1) if city_match else "서울"
+                                    
+                                    # 내일 날씨 vs 현재 날씨
+                                    if "내일" in query_lower or "tomorrow" in query_lower:
+                                        weather_result = weather_api.get_forecast_by_day(city_name, 1)
+                                        logger.info(f"☀️ OpenWeatherMap API로 내일 날씨 조회: {city_name}")
+                                    else:
+                                        weather_result = weather_api.get_city_weather(city_name)
+                                        logger.info(f"☀️ OpenWeatherMap API로 현재 날씨 조회: {city_name}")
+                                    
+                                    # 날씨 API 실패 시 None 반환 (폴백 처리)
+                                    if weather_result is None:
+                                        logger.warning(f"⚠️ OpenWeatherMap API 실패, 네이버 검색으로 폴백")
+                                
+                                except Exception as e:
+                                    logger.error(f"❌ 날씨 API 오류: {e}")
+                                    weather_result = None
+                    
+                    # ✨ 웹 검색 필요 여부 판단 및 실행 (날씨 API 실패 시 폴백)
                     search_context = ""
                     if st.session_state.api_manager:
                         try:
                             web_search_api = st.session_state.api_manager['apis']['web_search']
                             need_search, reason = web_search_api.should_search(user_input)
+                            
+                            # 날씨 쿼리이고 OpenWeatherMap API가 실패한 경우 강제 검색
+                            if weather_result is None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
+                                need_search = True
+                                reason = "날씨 API 폴백"
                             
                             if need_search:
                                 status.update(label="🔍 최신 정보 검색 중...")
@@ -761,17 +805,24 @@ def show_chat_dashboard():
                             logger.error(f"❌ 웹 검색 오류: {e}")
                             # 검색 실패 시에도 일반 대화는 계속 진행
                     
-                    # 모델에 전달할 최종 프롬프트 생성
-                    final_input = user_input
-                    if search_context:
-                        final_input = f"{search_context}사용자 질문: {user_input}\n\n위 검색 결과를 참고하여 답변해주세요."
+                    # 날씨 API 결과가 있으면 직접 응답으로 사용 (검색 불필요)
+                    if weather_result:
+                        response = weather_result
+                        st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
+                        st.session_state.chat_history.append({"role": "model", "parts": [response]})
+                        logger.info("✅ 날씨 API 응답 사용 (검색 생략)")
+                    else:
+                        # 모델에 전달할 최종 프롬프트 생성
+                        final_input = user_input
+                        if search_context:
+                            final_input = f"{search_context}사용자 질문: {user_input}\n\n위 검색 결과를 참고하여 답변해주세요."
                     
-                    chat_session = response_model.start_chat(history=st.session_state.chat_history)
-                    try:
-                        status.update(label=get_text("processing_response", response_language))
-                        response = chat_session.send_message(final_input).text
-                        st.session_state.chat_history = chat_session.history
-                    except Exception as e:
+                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
+                        try:
+                            status.update(label=get_text("processing_response", response_language))
+                            response = chat_session.send_message(final_input).text
+                            st.session_state.chat_history = chat_session.history
+                        except Exception as e:
                         logger.error(f"Google Generative AI 서비스 오류: {e}")
                         response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
                 status.update(label=get_text("processing_complete", response_language), state="complete")
