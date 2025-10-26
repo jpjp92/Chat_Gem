@@ -60,7 +60,8 @@ class WebSearchAPI:
                     return "검색 결과가 없습니다. 😓"
                 
                 formatted_result = self.format_search_results(results)
-                self.cache.setex(cache_key, self.cache_ttl, formatted_result)
+                # diskcache는 set(key, value, expire=ttl) 형식 사용
+                self.cache.set(cache_key, formatted_result, expire=self.cache_ttl)
                 return formatted_result
             else:
                 return f"검색 API 오류 (코드: {response.getcode()}) 😓"
