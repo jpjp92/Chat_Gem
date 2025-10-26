@@ -33,9 +33,12 @@ class WebSearchAPI:
     
     def search_web(self, query, display=5, sort="date"):
         """Naver API를 사용하여 웹 검색을 수행합니다."""
-        cache_key = f"naver:{query}:{display}:{sort}"
+        # 캐시 키에 날짜 포함 (매일 새로운 검색)
+        today = datetime.now().strftime("%Y-%m-%d")
+        cache_key = f"naver:{query}:{display}:{sort}:{today}"
         cached = self.cache.get(cache_key)
         if cached:
+            logger.info(f"캐시에서 검색 결과 반환: {cache_key}")
             return cached
         
         if self.is_over_limit():
@@ -80,8 +83,11 @@ class WebSearchAPI:
             clean_title = re.sub(r'<b>|</b>', '', item.get('title', '제목 없음'))
             clean_description = re.sub(r'<b>|</b>', '', item.get('description', '내용 없음'))
             
-            # 설명 길이 제한
-            description_preview = clean_description[:100] + "..." if len(clean_description) > 100 else clean_description
+            # 설명 길이 제한 (300자로 증가 - 더 많은 정보 제공)
+            description_preview = clean_description[:300] + "..." if len(clean_description) > 300 else clean_description
+            
+            # 디버그: 원본 description 로깅
+            logger.debug(f"검색 결과 {i}: {clean_title[:50]}... | Description 길이: {len(clean_description)}")
             
             formatted_result = (
                 f"**결과 {i}**\n\n"
@@ -225,6 +231,13 @@ class WebSearchAPI:
         
         # 쿼리에서 '검색' 키워드 제거
         clean_query = query.lower().replace("검색", "").strip()
+        
+        # 날씨 관련 쿼리에 날짜 추가 (최신 정보 보장)
+        weather_keywords = ['날씨', '기온', '온도', '습도', '강수', 'weather', 'temperature', 'tiempo']
+        if any(kw in clean_query.lower() for kw in weather_keywords):
+            today = datetime.now().strftime("%Y년 %m월 %d일")
+            clean_query = f"{today} {clean_query}"
+            logger.info(f"날씨 쿼리에 날짜 추가: '{clean_query}'")
         
         # 검색 수행
         search_result = self.search_web(clean_query)
