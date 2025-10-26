@@ -919,7 +919,23 @@ def show_chat_dashboard():
                         # 모델에 전달할 최종 프롬프트 생성
                         final_input = user_input
                         if search_context:
-                            final_input = f"{search_context}사용자 질문: {user_input}\n\n위 검색 결과를 참고하여 답변해주세요."
+                            final_input = f"""{search_context}
+
+사용자 질문: {user_input}
+
+---
+답변 작성 가이드라인:
+1. 위 검색 결과를 참고하여 정확하고 상세하게 답변해주세요.
+2. **중요**: 답변 마지막에 반드시 참고한 출처를 다음 형식으로 표시해주세요:
+
+📚 **참고 출처**
+- [결과 1 제목](링크 URL)
+- [결과 2 제목](링크 URL)
+...
+
+3. 검색 결과의 🔗 링크를 그대로 사용하세요.
+4. 출처 없이 답변하지 마세요.
+"""
                     
                         chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         try:
