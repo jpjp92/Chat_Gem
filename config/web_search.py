@@ -140,6 +140,8 @@ class WebSearchAPI:
             '기온', '온도', '습도', '강수량', '시간대',
             # 의약품/건강 관련 (정확한 정보 제공을 위해)
             '효능', '부작용', '복용법', '용량', '처방', '의약품', '약품',
+            # 정보 조사/탐색 관련 (AI, 기술, 제품 등)
+            '조사', '특성', '특징', '장점', '단점', '비교', '차이', '스펙', '사양', '정보', '알려줘',
             
             # 영어 (English)
             'today', 'latest', 'recent', 'real-time', 'realtime', 'live', 'news', 'stock', 
@@ -153,6 +155,9 @@ class WebSearchAPI:
             # 의약품
             'medicine', 'drug', 'medication', 'dosage', 'side effect', 'side effects',
             'prescription', 'tylenol', 'aspirin', 'ibuprofen',
+            # 정보 조사/탐색
+            'research', 'investigate', 'features', 'characteristics', 'pros', 'cons', 'comparison', 
+            'difference', 'specs', 'specifications', 'information', 'tell me about',
             
             # 스페인어 (Español)
             'hoy', 'últimas', 'último', 'reciente', 'recientes', 'tiempo real', 'noticias', 
@@ -165,10 +170,25 @@ class WebSearchAPI:
             'temperatura', 'humedad', 'lluvia', 'zona horaria', 'hora',
             # 의약품
             'medicina', 'medicamento', 'dosis', 'efectos secundarios', 'receta',
+            # 정보 조사/탐색
+            'investigar', 'características', 'ventajas', 'desventajas', 'comparación', 
+            'diferencia', 'especificaciones', 'información',
         ]
         for kw in realtime_keywords:
             if kw in q:
                 return True, f"키워드 감지: {kw}"
+        
+        # AI/기술/제품 관련 최신 정보 요청 감지
+        # "Claude 4.5 특성", "GPT-5 알려줘", "iPhone 16 스펙" 등
+        tech_info_patterns = [
+            r'(claude|gpt|gemini|llama|chatgpt|bard|copilot|midjourney|stable diffusion|dall-e)\s*[\d\.]+',  # AI 모델 버전
+            r'(iphone|galaxy|pixel|macbook|ipad|airpods|watch)\s*[\d]+',  # 제품 모델
+            r'(ios|android|windows|macos|linux)\s*[\d]+',  # OS 버전
+            r'(python|javascript|react|vue|angular|django|flask)\s*[\d\.]+',  # 프레임워크 버전
+        ]
+        for pattern in tech_info_patterns:
+            if re.search(pattern, q, re.IGNORECASE):
+                return True, "AI/기술/제품 버전 정보 요청 감지"
 
         # 약품명 패턴 감지 (~~정, ~~약, ~~제, ~~캡슐 등)
         medicine_pattern = r'(타이레놀|아스피린|게보린|판콜|훼스탈|펜잘|이부프로펜|덱시부프로펜|' \
