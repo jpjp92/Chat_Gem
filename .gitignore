@@ -16,3 +16,9 @@ WEATHER_IMPROVEMENT_SUMMARY.md
 WEB_SEARCH_TEST_EXAMPLES.md
 WEBPAGE_METADATA_FIX.md
 __pycache__/app.cpython-312.pyc
+__pycache__/test_multilingual_comparison.cpython-312.pyc
+.env.example
+
+AI_CITY_EXTRACTION.md
+
+test/
