@@ -17,7 +17,13 @@ class WebSearchAPI:
         self.cache_ttl = cache_ttl
         self.daily_limit = daily_limit
         self.request_count = 0
-        self.base_url = "https://openapi.naver.com/v1/search/webkr"
+        # 네이버 검색 API 엔드포인트
+        self.base_urls = {
+            'web': "https://openapi.naver.com/v1/search/webkr",
+            'news': "https://openapi.naver.com/v1/search/news",
+            'blog': "https://openapi.naver.com/v1/search/blog"
+        }
+        self.base_url = self.base_urls['web']  # 기본값
     
     def get_request_count(self):
         """현재 요청 횟수를 반환합니다."""
@@ -31,23 +37,9 @@ class WebSearchAPI:
         """일일 한도 초과 여부를 확인합니다."""
         return self.request_count >= self.daily_limit
     
-    def search_web(self, query, display=5, sort="date"):
-        """Naver API를 사용하여 웹 검색을 수행합니다."""
-        # 캐시 키에 날짜 포함 (매일 새로운 검색)
-        today = datetime.now().strftime("%Y-%m-%d")
-        cache_key = f"naver:{query}:{display}:{sort}:{today}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            logger.info(f"캐시에서 검색 결과 반환: {cache_key}")
-            return cached
-        
-        if self.is_over_limit():
-            return "검색 한도 초과로 결과를 가져올 수 없습니다. 😓"
-        
+    def _execute_search(self, url):
+        """실제 네이버 API 호출을 수행합니다."""
         try:
-            enc_text = urllib.parse.quote(query)
-            url = f"{self.base_url}?query={enc_text}&display={display}&sort={sort}"
-            
             request = urllib.request.Request(url)
             request.add_header("X-Naver-Client-Id", self.client_id)
             request.add_header("X-Naver-Client-Secret", self.client_secret)
@@ -57,17 +49,82 @@ class WebSearchAPI:
             
             if response.getcode() == 200:
                 data = json.loads(response.read().decode('utf-8'))
-                results = data.get('items', [])
+                return data.get('items', [])
+            return []
+        except Exception as e:
+            logger.error(f"네이버 API 호출 오류: {e}")
+            return []
+    
+    def search_web(self, query, display=5, sort="date", search_type='web'):
+        """Naver API를 사용하여 웹 검색을 수행합니다.
+        
+        Args:
+            query: 검색 쿼리
+            display: 결과 개수 (기본 5개)
+            sort: 정렬 방식 ('sim' 정확도순, 'date' 날짜순)
+            search_type: 검색 타입 ('web', 'news', 'blog', 'multi')
+                        'multi'는 웹+뉴스 통합 검색
+        """
+        # 캐시 키에 날짜 포함 (매일 새로운 검색)
+        today = datetime.now().strftime("%Y-%m-%d")
+        cache_key = f"naver:{search_type}:{query}:{display}:{sort}:{today}"
+        cached = self.cache.get(cache_key) if self.cache else None
+        if cached:
+            logger.info(f"캐시에서 검색 결과 반환: {cache_key}")
+            return cached
+        
+        if self.is_over_limit():
+            return "검색 한도 초과로 결과를 가져올 수 없습니다. 😓"
+        
+        try:
+            # 최신 정보를 위해 쿼리에 현재 연도/월 추가
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            
+            # 연도가 포함되지 않은 경우 현재 연도 추가
+            enhanced_query = query
+            if str(current_year) not in query and any(keyword in query.lower() for keyword in ['순위', '일정', '결과', '현황', '최신']):
+                enhanced_query = f"{query} {current_year}년"
+                logger.info(f"🔍 검색 쿼리 강화: '{query}' → '{enhanced_query}'")
+            
+            enc_text = urllib.parse.quote(enhanced_query)
+            
+            # multi 모드: 웹 + 뉴스 통합 검색
+            if search_type == 'multi':
+                all_results = []
                 
-                if not results:
-                    return "검색 결과가 없습니다. 😓"
+                # 웹 검색 (3개)
+                web_url = f"{self.base_urls['web']}?query={enc_text}&display=3&sort={sort}"
+                web_results = self._execute_search(web_url)
+                if web_results:
+                    all_results.extend(web_results[:3])
                 
-                formatted_result = self.format_search_results(results)
-                # diskcache는 set(key, value, expire=ttl) 형식 사용
-                self.cache.set(cache_key, formatted_result, expire=self.cache_ttl)
-                return formatted_result
+                # 뉴스 검색 (2개) - 최신 정보
+                news_url = f"{self.base_urls['news']}?query={enc_text}&display=2&sort=date"
+                news_results = self._execute_search(news_url)
+                if news_results:
+                    # 뉴스 결과 표시
+                    for item in news_results:
+                        item['source_type'] = '📰 뉴스'
+                    all_results.extend(news_results[:2])
+                
+                results = all_results[:display]
             else:
-                return f"검색 API 오류 (코드: {response.getcode()}) 😓"
+                # 단일 검색
+                base_url = self.base_urls.get(search_type, self.base_urls['web'])
+                url = f"{base_url}?query={enc_text}&display={display}&sort={sort}"
+                results = self._execute_search(url)
+            
+            if not results:
+                return "검색 결과가 없습니다. 😓"
+            
+            formatted_result = self.format_search_results(results)
+            
+            # 캐시 저장
+            if self.cache:
+                self.cache.set(cache_key, formatted_result, expire=self.cache_ttl)
+            
+            return formatted_result
                 
         except Exception as e:
             logger.error(f"Naver API 오류: {str(e)}")
@@ -83,6 +140,21 @@ class WebSearchAPI:
             clean_title = re.sub(r'<b>|</b>', '', item.get('title', '제목 없음'))
             clean_description = re.sub(r'<b>|</b>', '', item.get('description', '내용 없음'))
             
+            # 소스 타입 (뉴스, 블로그 등)
+            source_type = item.get('source_type', '')
+            source_str = f"{source_type} " if source_type else ""
+            
+            # 날짜 정보 추출 (YYYYMMDD 형식)
+            pub_date = item.get('pubDate', '')
+            date_str = ""
+            if pub_date:
+                try:
+                    # pubDate는 "YYYYMMDD" 형식
+                    date_obj = datetime.strptime(pub_date, '%Y%m%d')
+                    date_str = f"📅 **작성일**: {date_obj.strftime('%Y년 %m월 %d일')}\n\n"
+                except:
+                    pass
+            
             # 설명 길이 제한 (300자로 증가 - 더 많은 정보 제공)
             description_preview = clean_description[:300] + "..." if len(clean_description) > 300 else clean_description
             
@@ -90,8 +162,9 @@ class WebSearchAPI:
             logger.debug(f"검색 결과 {i}: {clean_title[:50]}... | Description 길이: {len(clean_description)}")
             
             formatted_result = (
-                f"**결과 {i}**\n\n"
+                f"**결과 {i}** {source_str}\n\n"
                 f"📄 **제목**: {clean_title}\n\n"
+                f"{date_str}"
                 f"📝 **내용**: {description_preview}\n\n"
                 f"🔗 **링크**: {item.get('link', '')}"
             )
@@ -225,6 +298,93 @@ class WebSearchAPI:
 
         # 기본: 검색 불필요
         return False, '키워드/패턴 미검출'
+    
+    def ai_should_search(self, query, genai_model=None):
+        """
+        AI 모델을 사용하여 검색 필요 여부를 판단합니다.
+        모델이 학습 데이터에 없는 정보나 최신 정보가 필요한지 스스로 판단합니다.
+        
+        Args:
+            query: 사용자 질문
+            genai_model: Gemini 모델 인스턴스 (없으면 규칙 기반으로만 판단)
+        
+        Returns:
+            (bool, str): (검색 필요 여부, 판단 이유)
+        """
+        if not genai_model:
+            return None, "AI 모델 없음"
+        
+        try:
+            prompt = f"""다음 질문에 답변하기 위해 웹 검색이 필요한지 **단계별로 사고(thinking)**하여 판단해주세요.
+
+질문: "{query}"
+
+## 단계별 판단 프로세스:
+
+### Step 1: 시간성 분석
+- 특정 연도/날짜가 언급되었는가?
+- 2024년 이후 정보를 요구하는가?
+- "최신", "오늘", "현재" 같은 실시간 키워드가 있는가?
+
+### Step 2: 정보 타입 분석
+- 실시간 데이터인가? (날씨, 주가, 뉴스, 환율 등)
+- 특정 제품/버전의 최신 정보인가? (Claude 4.5, iPhone 16 등)
+- 이벤트/발표 일정 정보인가?
+- 학습 데이터(2024년까지)에 포함된 일반 지식인가?
+
+### Step 3: 최종 판단
+- 위 분석을 종합하여 검색 필요 여부 결정
+
+## 응답 형식:
+THINKING:
+- Step 1: [시간성 분석 결과]
+- Step 2: [정보 타입 분석]
+- Step 3: [최종 판단 근거]
+
+SEARCH_NEEDED: YES/NO
+REASON: (한 줄 요약)
+
+## 예시:
+질문: "2025년 노벨상 수상자는?"
+THINKING:
+- Step 1: 2025년 정보 요구 → 학습 데이터 이후
+- Step 2: 실시간/최신 이벤트 정보
+- Step 3: 검색 필요 (학습 데이터에 없음)
+SEARCH_NEEDED: YES
+REASON: 2025년 정보는 학습 데이터 이후
+
+질문: "파이썬이란?"
+THINKING:
+- Step 1: 시간성 없음, 일반 지식 질문
+- Step 2: 프로그래밍 언어 기본 개념
+- Step 3: 검색 불필요 (학습 데이터로 충분)
+SEARCH_NEEDED: NO
+REASON: 기본 개념, 학습 데이터로 답변 가능"""
+
+            response = genai_model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Thinking 과정 추출 (로그용)
+            thinking_match = re.search(r'THINKING:\s*(.+?)(?=SEARCH_NEEDED:)', result_text, re.DOTALL)
+            if thinking_match:
+                thinking = thinking_match.group(1).strip()
+                logger.info(f"🧠 AI Thinking:\n{thinking}")
+            
+            # 응답 파싱
+            if "SEARCH_NEEDED: YES" in result_text:
+                reason_match = re.search(r'REASON:\s*(.+)', result_text)
+                reason = reason_match.group(1) if reason_match else "AI 판단: 검색 필요"
+                logger.info(f"✅ AI 최종 판단: 검색 필요 - {reason}")
+                return True, f"AI 판단: {reason}"
+            else:
+                reason_match = re.search(r'REASON:\s*(.+)', result_text)
+                reason = reason_match.group(1) if reason_match else "AI 판단: 검색 불필요"
+                logger.info(f"⏭️ AI 최종 판단: 검색 불필요 - {reason}")
+                return False, f"AI 판단: {reason}"
+                
+        except Exception as e:
+            logger.error(f"❌ AI 검색 판단 오류: {e}")
+            return None, f"AI 판단 실패: {e}"
 
     def get_function_signature(self):
         """

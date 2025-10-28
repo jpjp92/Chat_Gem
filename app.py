@@ -833,8 +833,16 @@ def show_chat_dashboard():
                             comparison_keywords = ['차이', '비교', 'vs', 'versus', '다른점', 'difference', 'compare', 'comparison']
                             is_comparison = any(kw in user_input.lower() for kw in comparison_keywords)
                             
-                            # 2단계: 검색 필요 여부 판단
+                            # 2단계: 규칙 기반 검색 필요 여부 판단
                             need_search, reason = web_search_api.should_search(user_input)
+                            
+                            # 3단계: AI 기반 추가 판단 (규칙으로 걸러지지 않은 경우)
+                            if not need_search:
+                                ai_need_search, ai_reason = web_search_api.ai_should_search(user_input, response_model)
+                                if ai_need_search is True:  # AI가 검색 필요하다고 판단
+                                    need_search = True
+                                    reason = ai_reason
+                                    logger.info(f"✨ 규칙 통과 but AI가 검색 필요 감지: {ai_reason}")
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
                             if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
@@ -847,7 +855,7 @@ def show_chat_dashboard():
                                 reason = "날씨 API 폴백"
                             
                             if need_search:
-                                # 3단계: 비교 질문이면 다중 검색 쿼리 생성
+                                # 4단계: 비교 질문이면 다중 검색 쿼리 생성
                                 if is_comparison:
                                     logger.info("🔍 비교 질문 감지: 다중 검색 준비")
                                     
@@ -956,6 +964,9 @@ def show_chat_dashboard():
                         # 모델에 전달할 최종 프롬프트 생성
                         final_input = user_input
                         if search_context:
+                            from datetime import datetime
+                            current_date = datetime.now().strftime("%Y년 %m월 %d일")
+                            
                             final_input = f"""{search_context}
 
 사용자 질문: {user_input}
@@ -963,15 +974,23 @@ def show_chat_dashboard():
 ---
 답변 작성 가이드라인:
 1. 위 검색 결과를 참고하여 정확하고 상세하게 답변해주세요.
-2. **중요**: 답변 마지막에 반드시 참고한 출처를 다음 형식으로 표시해주세요:
+2. **현재 날짜**: {current_date}
+   - 검색 결과가 최신이 아닐 수 있습니다.
+   - 정보의 작성 날짜를 확인하고, 오래된 정보라면 이를 명시해주세요.
+   - 실시간/최신 정보가 필요한 경우 공식 웹사이트 확인을 권장하세요.
+3. **순위/순위표 질문의 경우**:
+   - 검색 결과에서 찾은 부분 정보를 정리해주세요 (예: 상위 5팀, 주요 팀 순위)
+   - 완전한 순위표가 없다면, 공식 웹사이트 링크를 안내하세요
+   - 예: "완전한 순위는 [공식 사이트](URL)에서 확인하세요"
+4. **중요**: 답변 마지막에 반드시 참고한 출처를 다음 형식으로 표시해주세요:
 
 📚 **참고 출처**
 - [결과 1 제목](링크 URL)
 - [결과 2 제목](링크 URL)
 ...
 
-3. 검색 결과의 🔗 링크를 그대로 사용하세요.
-4. 출처 없이 답변하지 마세요.
+5. 검색 결과의 🔗 링크를 그대로 사용하세요.
+6. 출처 없이 답변하지 마세요.
 """
                     
                         chat_session = response_model.start_chat(history=st.session_state.chat_history)

@@ -9,6 +9,109 @@ import pytz
 
 logger = logging.getLogger(__name__)
 
+# 한글 → 영어/현지어 지역명 매핑 사전
+LOCATION_MAPPING = {
+    # 스페인 주요 지역
+    "카나리아": "Canary Islands,ES",
+    "카나리아 제도": "Canary Islands,ES",
+    "스페인 카나리아": "Canary Islands,ES",
+    "카나리아 섬": "Canary Islands,ES",
+    "라스팔마스": "Las Palmas,ES",
+    "스페인 라스팔마스": "Las Palmas,ES",
+    "테네리페": "Tenerife,ES",
+    "스페인 테네리페": "Tenerife,ES",
+    "산타크루스": "Santa Cruz de Tenerife,ES",
+    "바르셀로나": "Barcelona,ES",
+    "스페인 바르셀로나": "Barcelona,ES",
+    "마드리드": "Madrid,ES",
+    "스페인 마드리드": "Madrid,ES",
+    "발렌시아": "Valencia,ES",
+    "세비야": "Seville,ES",
+    "그라나다": "Granada,ES",
+    
+    # 유럽 휴양지 / 유명 지역
+    "몰타": "Malta,MT",
+    "키프로스": "Cyprus,CY",
+    "산토리니": "Santorini,GR",
+    "크레타": "Crete,GR",
+    "시칠리아": "Sicily,IT",
+    
+    # 아시아 휴양지
+    "하와이": "Honolulu,US",
+    "몰디브": "Male,MV",
+    "발리": "Bali,ID",
+    "푸켓": "Phuket,TH",
+    "세부": "Cebu,PH",
+    "보라카이": "Boracay,PH",
+    "나트랑": "Nha Trang,VN",
+    "다낭": "Da Nang,VN",
+    
+    # 한국 주요 지역
+    "제주": "Jeju,KR",
+    "제주도": "Jeju,KR",
+    "부산": "Busan,KR",
+    "인천": "Incheon,KR",
+    "대구": "Daegu,KR",
+    "광주": "Gwangju,KR",
+    "대전": "Daejeon,KR",
+    "울산": "Ulsan,KR",
+    "수원": "Suwon,KR",
+    "강릉": "Gangneung,KR",
+    
+    # 유럽 주요 도시
+    "런던": "London,GB",
+    "파리": "Paris,FR",
+    "로마": "Rome,IT",
+    "베를린": "Berlin,DE",
+    "암스테르담": "Amsterdam,NL",
+    "프라하": "Prague,CZ",
+    "빈": "Vienna,AT",
+    "취리히": "Zurich,CH",
+    "브뤼셀": "Brussels,BE",
+    "코펜하겐": "Copenhagen,DK",
+    "스톡홀름": "Stockholm,SE",
+    "오슬로": "Oslo,NO",
+    
+    # 아시아 주요 도시
+    "도쿄": "Tokyo,JP",
+    "오사카": "Osaka,JP",
+    "교토": "Kyoto,JP",
+    "베이징": "Beijing,CN",
+    "상하이": "Shanghai,CN",
+    "홍콩": "Hong Kong,HK",
+    "타이베이": "Taipei,TW",
+    "방콕": "Bangkok,TH",
+    "싱가포르": "Singapore,SG",
+    "쿠알라룸푸르": "Kuala Lumpur,MY",
+    "자카르타": "Jakarta,ID",
+    "마닐라": "Manila,PH",
+    "델리": "Delhi,IN",
+    "뭄바이": "Mumbai,IN",
+    
+    # 미주 주요 도시
+    "뉴욕": "New York,US",
+    "로스앤젤레스": "Los Angeles,US",
+    "시카고": "Chicago,US",
+    "샌프란시스코": "San Francisco,US",
+    "라스베가스": "Las Vegas,US",
+    "마이애미": "Miami,US",
+    "토론토": "Toronto,CA",
+    "밴쿠버": "Vancouver,CA",
+    "멕시코시티": "Mexico City,MX",
+    
+    # 호주/오세아니아
+    "시드니": "Sydney,AU",
+    "멜버른": "Melbourne,AU",
+    "브리즈번": "Brisbane,AU",
+    "오클랜드": "Auckland,NZ",
+    
+    # 중동/아프리카
+    "두바이": "Dubai,AE",
+    "아부다비": "Abu Dhabi,AE",
+    "카이로": "Cairo,EG",
+    "요하네스버그": "Johannesburg,ZA",
+}
+
 class WeatherAPI:
     def __init__(self, cache_handler, WEATHER_API_KEY, cache_ttl=600):
         self.cache = cache_handler
@@ -57,7 +160,14 @@ class WeatherAPI:
         return None
 
     def search_city_by_name(self, city_name):
-        """OpenWeatherMap Geocoding API로 도시 검색 (메인 메서드)"""
+        """OpenWeatherMap Geocoding API로 도시 검색 (한글 자동 변환 지원)"""
+        # 1단계: 한글 지역명 자동 변환
+        original_city_name = city_name
+        mapped_name = LOCATION_MAPPING.get(city_name.lower())
+        if mapped_name:
+            logger.info(f"지역명 자동 변환: '{city_name}' → '{mapped_name}'")
+            city_name = mapped_name
+        
         cache_key = f"city_search:{city_name}"
         cached = self.cache.get(cache_key)
         if cached:
@@ -83,7 +193,8 @@ class WeatherAPI:
                     "lat": result.get("lat"),
                     "lon": result.get("lon"),
                     "local_names": result.get("local_names", {}),
-                    "search_name": f"{result.get('name')},{result.get('country')}"
+                    "search_name": f"{result.get('name')},{result.get('country')}",
+                    "original_query": original_city_name  # 원본 검색어 저장
                 }
                 
                 self.cache.set(cache_key, city_info, expire=86400)  # 24시간 캐싱
