@@ -848,10 +848,10 @@ def show_chat_dashboard():
                                 
                                 # 검색 결과를 컨텍스트로 추가
                                 if not search_result.startswith("검색이 필요하지 않음"):
-                                    search_context = f"\n\n[최신 검색 정보]\n{search_result}\n\n"
+                                    search_context = search_result
                                     logger.info(f"✅ 검색 완료: {len(search_result)} chars")
                                     # 디버그: 검색 결과 미리보기
-                                    preview = search_result[:300] + "..." if len(search_result) > 300 else search_result
+                                    preview = search_result[:200] + "..." if len(search_result) > 200 else search_result
                                     logger.info(f"📄 검색 결과 미리보기:\n{preview}")
                             else:
                                 logger.info(f"⏭️ 검색 불필요: {reason}")
@@ -865,11 +865,43 @@ def show_chat_dashboard():
                         st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
                         st.session_state.chat_history.append({"role": "model", "parts": [response]})
                         logger.info("✅ 날씨 API 응답 사용 (검색 생략)")
+                    # 검색 결과가 있으면 검색 결과를 먼저 보여주고 모델에게 간단한 요약만 요청
+                    elif search_context:
+                        status.update(label="📝 검색 결과 정리 중...")
+                        # 검색 결과를 사용자에게 먼저 표시 (스트리밍으로)
+                        with st.chat_message("assistant"):
+                            # 검색 결과 직접 출력
+                            st.markdown(search_context)
+                        
+                        # 모델에게 간단한 요약만 요청 (선택적)
+                        summary_prompt = f"""다음은 사용자의 질문 '{user_input}'에 대한 웹 검색 결과입니다.
+
+{search_context}
+
+위 검색 결과의 핵심 내용을 2-3문장으로 간단히 요약해주세요. 검색 결과를 그대로 반복하지 말고, 가장 중요한 정보만 추출해주세요."""
+                        
+                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
+                        try:
+                            summary_response = chat_session.send_message(summary_prompt).text
+                            # 요약은 별도 메시지로 추가
+                            with st.chat_message("assistant"):
+                                st.markdown(f"\n\n💡 **핵심 요약**\n{summary_response}")
+                            
+                            # 히스토리에는 검색 결과 + 요약을 함께 저장
+                            full_response = f"{search_context}\n\n💡 **핵심 요약**\n{summary_response}"
+                            st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
+                            st.session_state.chat_history.append({"role": "model", "parts": [full_response]})
+                            logger.info("✅ 검색 결과 + 요약 완료")
+                            response = full_response  # 저장용
+                        except Exception as e:
+                            logger.error(f"요약 생성 오류: {e}")
+                            # 요약 실패 시 검색 결과만 저장
+                            response = search_context
+                            st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
+                            st.session_state.chat_history.append({"role": "model", "parts": [response]})
                     else:
-                        # 모델에 전달할 최종 프롬프트 생성
+                        # 검색 결과가 없으면 일반 모델 응답
                         final_input = user_input
-                        if search_context:
-                            final_input = f"{search_context}사용자 질문: {user_input}\n\n위 검색 결과를 참고하여 답변해주세요."
                     
                         chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         try:

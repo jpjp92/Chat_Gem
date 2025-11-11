@@ -140,6 +140,8 @@ class WebSearchAPI:
             '기온', '온도', '습도', '강수량', '시간대',
             # 의약품/건강 관련 (정확한 정보 제공을 위해)
             '효능', '부작용', '복용법', '용량', '처방', '의약품', '약품',
+            # 검색 의도 명시적 표현
+            '검색', '찾아', '알려', '궁금', '정보', '어떻게', '무엇', '누구',
             
             # 영어 (English)
             'today', 'latest', 'recent', 'real-time', 'realtime', 'live', 'news', 'stock', 
@@ -153,6 +155,8 @@ class WebSearchAPI:
             # 의약품
             'medicine', 'drug', 'medication', 'dosage', 'side effect', 'side effects',
             'prescription', 'tylenol', 'aspirin', 'ibuprofen',
+            # 검색 의도
+            'search', 'find', 'tell me', 'what is', 'who is', 'how to', 'information', 'info',
             
             # 스페인어 (Español)
             'hoy', 'últimas', 'último', 'reciente', 'recientes', 'tiempo real', 'noticias', 
@@ -165,6 +169,8 @@ class WebSearchAPI:
             'temperatura', 'humedad', 'lluvia', 'zona horaria', 'hora',
             # 의약품
             'medicina', 'medicamento', 'dosis', 'efectos secundarios', 'receta',
+            # 검색 의도
+            'buscar', 'encontrar', 'qué es', 'quién es', 'cómo', 'información',
         ]
         for kw in realtime_keywords:
             if kw in q:
