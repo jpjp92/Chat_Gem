@@ -3,6 +3,12 @@
 .env.local
 .env.*.local
 
+# 파이썬 가상환경
+venv/
+env/
+ENV/
+.venv
+
 # 테스트 및 디버그 파일
 test/
 debug_page.html

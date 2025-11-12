@@ -484,13 +484,10 @@ def show_chat_dashboard():
             }
         ]
         
-        # 카드 UI를 Streamlit 버튼으로 구현 (아이콘 + 제목)
+        # 카드 UI를 Streamlit 버튼으로 구현
         cols = st.columns(5)
         for col, example in zip(cols, examples):
             with col:
-                # 아이콘을 HTML로 먼저 표시
-                st.markdown(f'<div style="text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem;">{example["icon"]}</div>', unsafe_allow_html=True)
-                
                 if st.button(
                     example['title'],
                     key=f"example_{example['key']}",
