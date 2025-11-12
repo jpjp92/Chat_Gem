@@ -404,8 +404,7 @@ def show_chat_dashboard():
                 if st.button(
                     get_text("delete_all", lang), 
                     key="clear_all", 
-                        help=get_text("delete_all_help", lang), 
-                        width='stretch'
+                        help=get_text("delete_all_help", lang)
                 ):
                     if st.session_state.chat_sessions:
                         st.markdown("---")
@@ -413,13 +412,13 @@ def show_chat_dashboard():
                         if confirm:
                             col_yes, col_no = st.columns(2)
                             with col_yes:
-                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary", width='stretch'):
+                                if st.button(get_text("confirm_yes", lang), key="confirm_clear", type="secondary"):
                                     st.session_state.chat_sessions = []
                                     create_new_chat_session()
                                     st.success(get_text("all_chats_deleted", lang))
                                     st.rerun()
                             with col_no:
-                                if st.button(get_text("confirm_no", lang), key="cancel_clear", width='stretch'):
+                                if st.button(get_text("confirm_no", lang), key="cancel_clear"):
                                     st.session_state.confirm_delete_checkbox = False
                                     st.rerun()
 
@@ -514,11 +513,11 @@ def show_chat_dashboard():
                             try:
                                 if isinstance(img_data, str):
                                     # URL인 경우 직접 표시
-                                    st.image(img_data, caption=f"이미지 {idx+1}", width='stretch')
+                                    st.image(img_data, caption=f"이미지 {idx+1}", width=300)
                                 else:
                                     # 바이너리 데이터인 경우
                                     img = Image.open(io.BytesIO(img_data))
-                                    st.image(img, caption=f"이미지 {idx+1}", width='stretch')
+                                    st.image(img, caption=f"이미지 {idx+1}", width=300)
                             except Exception as e:
                                 st.error(f"이미지 로드 실패: {str(e)}")
             if st.button("전체 대화 보기"):
@@ -535,11 +534,11 @@ def show_chat_dashboard():
                                 try:
                                     if isinstance(img_data, str):
                                         # URL인 경우 직접 표시
-                                        st.image(img_data, caption=f"이미지 {idx+1}", width='stretch')
+                                        st.image(img_data, caption=f"이미지 {idx+1}", width=300)
                                     else:
                                         # 바이너리 데이터인 경우
                                         img = Image.open(io.BytesIO(img_data))
-                                        st.image(img, caption=f"이미지 {idx+1}", width='stretch')
+                                        st.image(img, caption=f"이미지 {idx+1}", width=300)
                                 except Exception as e:
                                     st.error(f"이미지 로드 실패: {str(e)}")
 
