@@ -29,6 +29,19 @@ GEMINI_CUSTOM_CSS = """
         line-height: 1.4 !important;
     }
     
+    /* 작은 버튼들 (clear_attachments, confirm, cancel 등) */
+    button[kind="secondary"],
+    button:has-text("첨부 초기화"),
+    button:has-text("확인"),
+    button:has-text("취소"),
+    button:has-text("삭제"),
+    button:has-text("선택") {
+        padding: 0.5rem 1rem !important;
+        min-height: auto !important;
+        font-size: 0.85rem !important;
+        height: auto !important;
+    }
+    
     .stButton > button:hover {
         transform: translateY(-8px) !important;
         box-shadow: 0 16px 32px rgba(102, 126, 234, 0.2) !important;
