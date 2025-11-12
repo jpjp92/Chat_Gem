@@ -8,6 +8,7 @@ venv/
 env/
 ENV/
 .venv
+__pycache__/
 
 # 테스트 및 디버그 파일
 test/
