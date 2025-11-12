@@ -168,7 +168,159 @@ GEMINI_CUSTOM_CSS = """
             animation: none;
         }
     }
-    
+
+    /* Modern Example Cards (inspired by ChatGPT, Grok, Gemini) */
+    .example-card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.2rem;
+        margin: 2rem 0;
+        padding: 0 0.5rem;
+    }
+
+    .example-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        min-height: 180px;
+        justify-content: center;
+    }
+
+    .example-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .example-card:hover::before {
+        left: 100%;
+    }
+
+    .example-card:hover {
+        transform: translateY(-6px);
+        border-color: rgba(102, 126, 234, 0.5);
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
+    }
+
+    .example-card:active {
+        transform: translateY(-2px);
+    }
+
+    .example-card-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        display: inline-block;
+        transition: transform 0.3s ease;
+    }
+
+    .example-card:hover .example-card-icon {
+        transform: scale(1.15) rotate(5deg);
+    }
+
+    .example-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+        transition: color 0.3s ease;
+    }
+
+    .example-card:hover .example-card-title {
+        color: #667eea;
+    }
+
+    .example-card-desc {
+        font-size: 0.8rem;
+        color: #666;
+        line-height: 1.4;
+        transition: color 0.3s ease;
+    }
+
+    .example-card:hover .example-card-desc {
+        color: #555;
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        .example-card {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .example-card:hover {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            border-color: rgba(102, 126, 234, 0.6);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.25);
+        }
+
+        .example-card-title {
+            color: #e8f0ff;
+        }
+
+        .example-card:hover .example-card-title {
+            color: #a0b5ff;
+        }
+
+        .example-card-desc {
+            color: #b0b9c0;
+        }
+
+        .example-card:hover .example-card-desc {
+            color: #c8d5e8;
+        }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .example-card-container {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+
+        .example-card {
+            padding: 1.2rem;
+            min-height: 160px;
+        }
+
+        .example-card-icon {
+            font-size: 2rem;
+        }
+
+        .example-card-title {
+            font-size: 0.95rem;
+        }
+
+        .example-card-desc {
+            font-size: 0.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .example-card-container {
+            grid-template-columns: 1fr;
+            gap: 0.8rem;
+        }
+
+        .example-card {
+            padding: 1rem;
+            min-height: 140px;
+        }
+    }
     
    
 
