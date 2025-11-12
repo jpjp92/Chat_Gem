@@ -1,3 +1,9 @@
+# 환경 변수 및 민감한 정보
+.env
+.env.local
+.env.*.local
+
+# 테스트 및 디버그 파일
 test/
 debug_page.html
 REQUIREMENTS_REVIEW.md
