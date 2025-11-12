@@ -5,6 +5,7 @@ from config.imports import *
 from config.lang import get_text
 import logging
 import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,14 @@ def validate_nickname(nickname):
     if not nickname or not nickname.strip():
         return False, get_text("nickname_required", lang)
     nickname = nickname.strip()
+    # Normalize Unicode to NFC to reduce composition differences
+    nickname = unicodedata.normalize("NFC", nickname)
     if len(nickname) < 2:
         return False, get_text("nickname_too_short", lang)
     if len(nickname) > 20:
         return False, get_text("nickname_too_long", lang)
-    if not re.match(r'^[가-힣a-zA-Z0-9_\s]+$', nickname):
+    # 허용 문자: 가-힣(완성형), 한글 자모 블록(Compatibility Jamo/U+3131–U+318E, Hangul Jamo U+1100–U+11FF), 영문, 숫자, 밑줄, 공백
+    if not re.match(r'^[가-힣\u3131-\u318E\u1100-\u11FFa-zA-Z0-9_\s]+$', nickname):
         return False, get_text("nickname_invalid_chars", lang)
     return True, get_text("nickname_valid", lang)
 

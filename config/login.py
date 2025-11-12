@@ -11,10 +11,57 @@ def create_or_get_user(nickname):
         # Supabase가 없으면 더미 사용자 ID 반환
         return hash(nickname) % 1000000, False
     try:
+        # 먼저 정확한 닉네임으로 시도
         user_response = supabase.table("users").select("*").eq("nickname", nickname).execute()
         if user_response.data:
-            logger.info(f"기존 사용자 로그인: {nickname}")
+            logger.info(f"기존 사용자 로그인(정확일치): {nickname}")
             return user_response.data[0]["id"], True
+
+        # 한글 받침(종성) 유무로 로그인 시도 허용: 닉네임 변형 후보 생성
+        def _is_hangul_syllable(ch):
+            return 0xAC00 <= ord(ch) <= 0xD7A3
+
+        def _remove_jongseong(ch):
+            # 한글 완성형 음절에서 종성(받침)을 제거하여 반환
+            code = ord(ch)
+            SBASE = 0xAC00
+            LCOUNT = 19
+            VCOUNT = 21
+            TCOUNT = 28
+            COUNT = LCOUNT * VCOUNT * TCOUNT
+            sindex = code - SBASE
+            if sindex < 0 or sindex >= COUNT:
+                return ch
+            # 분해
+            tindex = sindex % TCOUNT
+            if tindex == 0:
+                return ch
+            # 종성 없앤 코드
+            new_code = code - tindex
+            return chr(new_code)
+
+        variants = set()
+        variants.add(nickname)
+        # 마지막 음절의 받침만 제거한 후보
+        if nickname:
+            last = nickname[-1]
+            if _is_hangul_syllable(last):
+                last_removed = _remove_jongseong(last)
+                if last_removed != last:
+                    variants.add(nickname[:-1] + last_removed)
+        # 모든 음절의 받침을 제거한 후보 (보다 넓은 매칭 허용)
+        removed_all = ''.join(_remove_jongseong(c) if _is_hangul_syllable(c) else c for c in nickname)
+        if removed_all != nickname:
+            variants.add(removed_all)
+
+        # 후보들로 하나씩 조회
+        for v in variants:
+            if v == nickname:
+                continue
+            resp = supabase.table("users").select("*").eq("nickname", v).execute()
+            if resp.data:
+                logger.info(f"기존 사용자 로그인(변형매칭): 입력={nickname} -> 매칭={v}")
+                return resp.data[0]["id"], True
         new_user_response = supabase.table("users").insert({
             "nickname": nickname,
             "created_at": datetime.now(timezone.utc).isoformat()
