@@ -440,8 +440,11 @@ def show_chat_dashboard():
         </div>
         """, unsafe_allow_html=True)
         
-        # 예시 버튼들 (다국어 적용)
-        col1, col2, col3, col4, col5 = st.columns(5)
+        # 예시 버튼들 - 화면 크기에 따라 자동 조정
+        st.markdown("### 💡 " + get_text("try_examples", lang, default="사용 예시"))
+        
+        # 2줄로 나누어 표시 (모바일에서도 깔끔하게)
+        col1, col2, col3 = st.columns(3)
         example_inputs = get_example_inputs(lang)
         
         with col1:
@@ -449,7 +452,7 @@ def show_chat_dashboard():
                 get_text("example_webpage", lang), 
                 key="example_webpage", 
                 help=get_text("example_webpage_help", lang), 
-                width='stretch'
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["webpage"]
         with col2:
@@ -457,7 +460,7 @@ def show_chat_dashboard():
                 get_text("example_youtube", lang), 
                 key="example_youtube", 
                 help=get_text("example_youtube_help", lang), 
-                width='stretch'
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["youtube"]
         with col3:
@@ -465,15 +468,18 @@ def show_chat_dashboard():
                 get_text("example_pdf", lang), 
                 key="example_pdf", 
                 help=get_text("example_pdf_help", lang), 
-                width='stretch'
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["pdf"]
+        
+        # 두 번째 줄
+        col4, col5, col6 = st.columns(3)
         with col4:
             if st.button(
                 get_text("example_image", lang), 
                 key="example_image", 
                 help=get_text("example_image_help", lang), 
-                width='stretch'
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["image"]
         with col5:
@@ -481,7 +487,7 @@ def show_chat_dashboard():
                 get_text("example_chat", lang), 
                 key="example_chat", 
                 help=get_text("example_chat_help", lang), 
-                width='stretch'
+                use_container_width=True
             ):
                 st.session_state.example_input = example_inputs["chat"]
         
