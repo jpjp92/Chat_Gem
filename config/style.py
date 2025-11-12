@@ -13,11 +13,20 @@ GEMINI_CUSTOM_CSS = """
     .stButton > button {
         border-radius: 8px;
         transition: all 0.3s ease;
+        padding: 1.2rem !important;
+        font-size: 0.9rem !important;
+        min-height: 120px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transform: translateY(-6px);
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%) !important;
     }
     
     .stProgress > div > div {
@@ -320,6 +329,11 @@ GEMINI_CUSTOM_CSS = """
             padding: 1rem;
             min-height: 140px;
         }
+    }
+
+    /* 예시 카드 아래 '선택' 버튼 숨기기 */
+    button[kind="secondary"]:has-text("선택") {
+        display: none !important;
     }
     
    

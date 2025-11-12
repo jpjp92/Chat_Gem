@@ -445,11 +445,6 @@ def show_chat_dashboard():
         
         example_inputs = get_example_inputs(lang)
         
-        # 카드 UI를 위한 HTML + CSS 기반 렌더링
-        cards_html = """
-        <div class="example-card-container">
-        """
-        
         # 각 예시 카드 정의 (아이콘, 제목, 설명)
         examples = [
             {
@@ -489,9 +484,9 @@ def show_chat_dashboard():
             }
         ]
         
-        # 각 카드마다 버튼 생성
-        cols = st.columns(len(examples))
-        for idx, (col, example) in enumerate(zip(cols, examples)):
+        # 카드 UI를 Streamlit 버튼으로 구현 (스타일은 CSS에서)
+        cols = st.columns(5)
+        for col, example in zip(cols, examples):
             with col:
                 if st.button(
                     f"{example['icon']}\n{example['title']}",
