@@ -362,5 +362,14 @@ GEMINI_CUSTOM_CSS = """
     
    
 
+    /* 첨부 초기화 버튼 기본 크기 */
+    .stButton button[data-testid="clear-attachments-btn"] {
+        width: auto !important;
+        min-width: 80px;
+        height: 36px !important;
+        padding: 0 16px !important;
+        font-size: 1rem !important;
+    }
+
 </style>
 """
