@@ -627,6 +627,13 @@ def fetch_webpage_content(url: str) -> str:
         # 빈 문자열 체크
         if not cleaned_text or len(cleaned_text.strip()) < 100:
             logger.warning(f"추출된 웹페이지 내용이 너무 짧음: {len(cleaned_text)} chars from {url}")
+            # 네이버 블로그인 경우 Playwright 폴백 시도
+            if "blog.naver.com" in url:
+                logger.info(f"Playwright 폴백 시도: {url}")
+                playwright_content = fetch_naver_blog_with_playwright(url)
+                if playwright_content and not playwright_content.startswith("❌"):
+                    return playwright_content
+            
             return f"⚠️ 웹페이지에서 충분한 내용을 추출하지 못했습니다. URL: {url}\n\n추출된 내용: {cleaned_text[:500]}"
         
         # 길이 제한 (토큰 수 고려)
@@ -638,12 +645,80 @@ def fetch_webpage_content(url: str) -> str:
             return f"❌ 웹페이지를 찾을 수 없습니다 (404): {url}"
         elif e.response.status_code == 403:
             logger.error(f"웹페이지 접근 금지: {url}")
+            # 네이버 블로그 403인 경우 Playwright 시도
+            if "blog.naver.com" in url:
+                logger.info(f"403 에러 - Playwright 폴백 시도: {url}")
+                playwright_content = fetch_naver_blog_with_playwright(url)
+                if playwright_content and not playwright_content.startswith("❌"):
+                    return playwright_content
             return f"❌ 웹페이지에 접근할 수 없습니다 (403 - 접근 금지): {url}"
         logger.error(f"웹페이지 접근 오류: {str(e)}")
         return f"❌ 웹페이지 접근 중 오류가 발생했습니다: {str(e)}"
     except Exception as e:
         logger.error(f"웹페이지 내용 가져오기 오류: {str(e)}")
         return f"❌ 웹페이지 내용을 가져오는 중 오류가 발생했습니다: {str(e)}"
+
+def fetch_naver_blog_with_playwright(url: str) -> str:
+    """Playwright를 사용하여 네이버 블로그 동적 콘텐츠 가져오기"""
+    try:
+        from playwright.sync_api import sync_playwright
+        
+        logger.info(f"Playwright로 네이버 블로그 콘텐츠 가져오기: {url}")
+        
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            )
+            page = context.new_page()
+            
+            try:
+                # 페이지 로드 (JavaScript 실행)
+                page.goto(url, wait_until='networkidle', timeout=30000)
+                
+                # 네이버 블로그 본문 영역 대기
+                page.wait_for_selector('div.se-main-container, div.post-view, div#postListBody', timeout=5000)
+                
+                # 콘텐츠 추출
+                content_html = page.content()
+                soup = BeautifulSoup(content_html, 'html.parser')
+                
+                # 불필요한 요소 제거
+                for elem in soup(['script', 'style', 'nav', 'header', 'footer']):
+                    elem.decompose()
+                
+                # 본문 추출
+                text = ""
+                for selector in ['div.se-main-container', 'div.post-view', 'div#postListBody', 'article']:
+                    main_content = soup.select_one(selector)
+                    if main_content:
+                        text = main_content.get_text(separator='\n', strip=True)
+                        break
+                
+                if not text:
+                    text = soup.get_text(separator='\n', strip=True)
+                
+                # 텍스트 정리
+                lines = [line.strip() for line in text.split('\n') if line.strip() and len(line.strip()) > 2]
+                cleaned_text = '\n'.join(lines)
+                
+                logger.info(f"Playwright 추출 완료: {len(cleaned_text)} chars")
+                
+                if len(cleaned_text) > 100:
+                    return cleaned_text[:25000]
+                else:
+                    return f"⚠️ Playwright로도 충분한 내용을 추출하지 못했습니다: {cleaned_text[:500]}"
+                    
+            finally:
+                context.close()
+                browser.close()
+                
+    except ImportError:
+        logger.error("Playwright가 설치되지 않았습니다. pip install playwright를 실행하세요.")
+        return "❌ Playwright 라이브러리가 설치되지 않았습니다."
+    except Exception as e:
+        logger.error(f"Playwright 웹페이지 추출 오류: {str(e)}")
+        return f"❌ Playwright로 웹페이지를 가져올 수 없습니다: {str(e)}"
 
 def extract_webpage_metadata(url: str, content: str) -> Dict[str, str]:
     """웹페이지 메타데이터 추출 (이미 가져온 content 사용)"""
