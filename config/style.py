@@ -31,7 +31,7 @@ GEMINI_CUSTOM_CSS = """
     
     /* 작은 버튼들 (clear_attachments, confirm, cancel 등) */
     button[kind="secondary"],
-    button:has-text("첨부 초기화"),
+    button:has-text("🗑️ 첨부 초기화"),
     button:has-text("확인"),
     button:has-text("취소"),
     button:has-text("삭제"),
