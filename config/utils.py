@@ -560,16 +560,23 @@ def fetch_webpage_content(url: str) -> str:
     try:
         debug_timings = os.environ.get("STREAMLIT_DEBUG_LOAD_TIMINGS", "0") == "1"
         t0 = time.perf_counter() if debug_timings else None
+        
         session = requests.Session()
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
         session.headers.update({
-            'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.naver.com/',
+            'Cache-Control': 'no-cache'
         })
         
-        response = session.get(url, timeout=15)
+        response = session.get(url, timeout=15, allow_redirects=True)
         response.raise_for_status()
+        response.encoding = 'utf-8'  # 인코딩 명시적 설정
+        
         if debug_timings:
             t1 = time.perf_counter()
             logger.info(f"TIMING: fetch_webpage_content GET {url} took {t1 - t0:.4f}s")
@@ -578,32 +585,60 @@ def fetch_webpage_content(url: str) -> str:
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # 불필요한 태그 제거
-        for script in soup(["script", "style", "nav", "header", "footer", "aside", "advertisement"]):
+        for script in soup(["script", "style", "nav", "header", "footer", "aside", "advertisement", "noscript"]):
             script.decompose()
         
-        # 주요 컨텐츠 영역 우선 추출
-        main_content = None
-        for selector in ['main', 'article', '.content', '.post-content', '.entry-content', '#content']:
-            if content_elem := soup.select_one(selector):
-                main_content = content_elem
-                break
+        # 네이버 블로그 특화 처리
+        text = ""
+        if "blog.naver.com" in url:
+            # 네이버 블로그 본문 영역
+            post_body = soup.find('div', class_='se-main-container')
+            if not post_body:
+                post_body = soup.find('div', id='postListBody')
+            if not post_body:
+                post_body = soup.find('div', class_='post-body')
+            if not post_body:
+                post_body = soup.find('div', class_='se-viewer')
+            
+            if post_body:
+                text = post_body.get_text(separator='\n', strip=True)
+                logger.info(f"네이버 블로그 본문 추출 완료: {len(text)} chars")
+            else:
+                logger.warning(f"네이버 블로그 본문 영역을 찾을 수 없음: {url}")
         
-        if main_content:
-            text = main_content.get_text(separator=' ', strip=True)
-        else:
-            text = soup.get_text(separator=' ', strip=True)
+        # 네이버 블로그가 아니거나 본문을 찾지 못한 경우
+        if not text:
+            # 주요 컨텐츠 영역 우선 추출
+            main_content = None
+            for selector in ['main', 'article', '.content', '.post-content', '.entry-content', '#content', '.post-view', '.blog-content']:
+                if content_elem := soup.select_one(selector):
+                    main_content = content_elem
+                    break
+            
+            if main_content:
+                text = main_content.get_text(separator='\n', strip=True)
+            else:
+                text = soup.get_text(separator='\n', strip=True)
         
         # 텍스트 정리
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        cleaned_text = ' '.join(lines)
+        lines = [line.strip() for line in text.split('\n') if line.strip() and len(line.strip()) > 2]
+        cleaned_text = '\n'.join(lines)
+        
+        # 빈 문자열 체크
+        if not cleaned_text or len(cleaned_text.strip()) < 100:
+            logger.warning(f"추출된 웹페이지 내용이 너무 짧음: {len(cleaned_text)} chars from {url}")
+            return f"⚠️ 웹페이지에서 충분한 내용을 추출하지 못했습니다. URL: {url}\n\n추출된 내용: {cleaned_text[:500]}"
         
         # 길이 제한 (토큰 수 고려)
-        return cleaned_text[:20000]
+        return cleaned_text[:25000]
         
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             logger.error(f"웹페이지를 찾을 수 없음: {url}")
-            return f"❌ 웹페이지를 찾을 수 없습니다: {url}"
+            return f"❌ 웹페이지를 찾을 수 없습니다 (404): {url}"
+        elif e.response.status_code == 403:
+            logger.error(f"웹페이지 접근 금지: {url}")
+            return f"❌ 웹페이지에 접근할 수 없습니다 (403 - 접근 금지): {url}"
         logger.error(f"웹페이지 접근 오류: {str(e)}")
         return f"❌ 웹페이지 접근 중 오류가 발생했습니다: {str(e)}"
     except Exception as e:
