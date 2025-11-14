@@ -566,7 +566,7 @@ def show_chat_dashboard():
                 for idx, img_file in enumerate(uploaded_images):
                     with cols[idx % 4]:
                         img = Image.open(img_file)
-                        st.image(img, caption=f"이미지 {idx+1}", width='stretch')
+                        st.image(img, caption=f"이미지 {idx+1}", width=200)
             
             uploaded_pdf = st.file_uploader(
                 get_text("upload_pdf", lang),
