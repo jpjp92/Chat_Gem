@@ -631,7 +631,7 @@ def fetch_webpage_content(url: str) -> str:
             if "blog.naver.com" in url:
                 logger.info(f"Playwright 폴백 시도: {url}")
                 playwright_content = fetch_naver_blog_with_playwright(url)
-                if playwright_content and not playwright_content.startswith("❌"):
+                if playwright_content:  # 빈 문자열이 아닌 경우만
                     return playwright_content
             
             return f"⚠️ 웹페이지에서 충분한 내용을 추출하지 못했습니다. URL: {url}\n\n추출된 내용: {cleaned_text[:500]}"
@@ -649,7 +649,7 @@ def fetch_webpage_content(url: str) -> str:
             if "blog.naver.com" in url:
                 logger.info(f"403 에러 - Playwright 폴백 시도: {url}")
                 playwright_content = fetch_naver_blog_with_playwright(url)
-                if playwright_content and not playwright_content.startswith("❌"):
+                if playwright_content:  # 빈 문자열이 아닌 경우만
                     return playwright_content
             return f"❌ 웹페이지에 접근할 수 없습니다 (403 - 접근 금지): {url}"
         logger.error(f"웹페이지 접근 오류: {str(e)}")
@@ -659,14 +659,26 @@ def fetch_webpage_content(url: str) -> str:
         return f"❌ 웹페이지 내용을 가져오는 중 오류가 발생했습니다: {str(e)}"
 
 def fetch_naver_blog_with_playwright(url: str) -> str:
-    """Playwright를 사용하여 네이버 블로그 동적 콘텐츠 가져오기"""
+    """
+    Playwright를 사용하여 네이버 블로그 동적 콘텐츠 가져오기
+    Streamlit Cloud 환경에서 브라우저 설치가 안 된 경우를 대비한 폴백 처리
+    """
+    # Playwright 비활성화 플래그 확인
+    if os.environ.get("PLAYWRIGHT_DISABLED") == "1":
+        logger.warning("🎭 Playwright가 비활성화되어 있습니다 (Streamlit Cloud 환경).")
+        return ""  # 빈 문자열 반환 -> 다른 폴백으로 진행
+    
     try:
         from playwright.sync_api import sync_playwright
         
         logger.info(f"Playwright로 네이버 블로그 콘텐츠 가져오기: {url}")
         
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # 브라우저 옵션: 보수적 설정
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--disable-dev-shm-usage', '--single-process']  # Streamlit Cloud 메모리 최적화
+            )
             context = browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             )
@@ -676,10 +688,7 @@ def fetch_naver_blog_with_playwright(url: str) -> str:
                 # 페이지 로드 (JavaScript 실행)
                 page.goto(url, wait_until='networkidle', timeout=30000)
                 
-                # 네이버 블로그 본문 영역 대기
-                page.wait_for_selector('div.se-main-container, div.post-view, div#postListBody', timeout=5000)
-                
-                # 콘텐츠 추출
+                # 콘텐츠 추출 (대기 없이 즉시 시도)
                 content_html = page.content()
                 soup = BeautifulSoup(content_html, 'html.parser')
                 
@@ -702,23 +711,31 @@ def fetch_naver_blog_with_playwright(url: str) -> str:
                 lines = [line.strip() for line in text.split('\n') if line.strip() and len(line.strip()) > 2]
                 cleaned_text = '\n'.join(lines)
                 
-                logger.info(f"Playwright 추출 완료: {len(cleaned_text)} chars")
+                logger.info(f"✅ Playwright 추출 완료: {len(cleaned_text)} chars")
                 
                 if len(cleaned_text) > 100:
                     return cleaned_text[:25000]
                 else:
-                    return f"⚠️ Playwright로도 충분한 내용을 추출하지 못했습니다: {cleaned_text[:500]}"
+                    return ""  # 빈 결과는 다른 폴백으로 진행
                     
             finally:
                 context.close()
                 browser.close()
                 
     except ImportError:
-        logger.error("Playwright가 설치되지 않았습니다. pip install playwright를 실행하세요.")
-        return "❌ Playwright 라이브러리가 설치되지 않았습니다."
+        logger.error("❌ Playwright 라이브러리가 설치되지 않았습니다")
+        return ""
+    except FileNotFoundError as e:
+        # Chromium 실행 파일을 찾을 수 없는 경우
+        if "headless_shell" in str(e) or "chrome" in str(e).lower():
+            logger.warning(f"⚠️ Playwright 브라우저 바이너리를 찾을 수 없습니다: {str(e)}")
+            # 환경 변수 설정으로 다음 시도에서 스킵
+            os.environ["PLAYWRIGHT_DISABLED"] = "1"
+            return ""
+        raise
     except Exception as e:
-        logger.error(f"Playwright 웹페이지 추출 오류: {str(e)}")
-        return f"❌ Playwright로 웹페이지를 가져올 수 없습니다: {str(e)}"
+        logger.warning(f"⚠️ Playwright 추출 오류 (폴백으로 진행): {str(e)}")
+        return ""  # 빈 결과 반환 -> requests 기반 추출 계속 시도
 
 def extract_webpage_metadata(url: str, content: str) -> Dict[str, str]:
     """웹페이지 메타데이터 추출 (이미 가져온 content 사용)"""

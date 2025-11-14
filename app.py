@@ -5,6 +5,13 @@ import os
 import time
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# ========== Playwright 초기화 (Streamlit Cloud 환경 지원) ==========
+try:
+    from config import playwright_setup
+except Exception as e:
+    print(f"경고: Playwright 초기화 실패: {e}")
+# ====================================================================
+
 # Set library imports
 from config.imports import *
 from datetime import timezone
