@@ -555,6 +555,7 @@ def is_pdf_summarization_request(text: str) -> tuple[bool, Optional[str]]:
         return True, urls[0]
     return False, None
 
+@lru_cache(maxsize=128)
 def fetch_webpage_content(url: str) -> str:
     """웹페이지 내용 가져오기 (개선된 버전)"""
     try:
