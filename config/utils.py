@@ -577,6 +577,22 @@ def fetch_webpage_content(url: str) -> str:
         response.raise_for_status()
         response.encoding = 'utf-8'  # 인코딩 명시적 설정
         
+        # 네이버 블로그 프레임셋 URL 감지 (iframe을 통한 리다이렉트)
+        if "blog.naver.com" in url and "/PostView.naver" not in url:
+            from bs4 import BeautifulSoup
+            soup_check = BeautifulSoup(response.text, 'html.parser')
+            iframe = soup_check.find('iframe')
+            if iframe and iframe.get('src'):
+                iframe_src = iframe.get('src')
+                # 상대 경로를 절대 경로로 변환
+                if iframe_src.startswith('/'):
+                    iframe_url = 'https://blog.naver.com' + iframe_src
+                else:
+                    iframe_url = iframe_src
+                logger.info(f"🔄 네이버 블로그 iframe 감지, 리다이렉트: {iframe_url}")
+                # iframe의 실제 콘텐츠 가져오기 (재귀 호출)
+                return fetch_webpage_content(iframe_url)
+        
         if debug_timings:
             t1 = time.perf_counter()
             logger.info(f"TIMING: fetch_webpage_content GET {url} took {t1 - t0:.4f}s")
