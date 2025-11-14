@@ -8,8 +8,8 @@ venv/
 env/
 ENV/
 .venv
-__pycache__/
-
+*__pycache__/
+config/__pycache__/
 # 테스트 및 디버그 파일
 test/
 debug_page.html

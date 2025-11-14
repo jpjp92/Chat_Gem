@@ -83,21 +83,22 @@ class WebSearchAPI:
             clean_title = re.sub(r'<b>|</b>', '', item.get('title', '제목 없음'))
             clean_description = re.sub(r'<b>|</b>', '', item.get('description', '내용 없음'))
             
-            # 설명 길이 제한 (300자로 증가 - 더 많은 정보 제공)
+            # 설명 길이 제한 (300자)
             description_preview = clean_description[:300] + "..." if len(clean_description) > 300 else clean_description
             
             # 디버그: 원본 description 로깅
             logger.debug(f"검색 결과 {i}: {clean_title[:50]}... | Description 길이: {len(clean_description)}")
             
             formatted_result = (
-                f"**결과 {i}**\n\n"
-                f"📄 **제목**: {clean_title}\n\n"
-                f"📝 **내용**: {description_preview}\n\n"
-                f"🔗 **링크**: {item.get('link', '')}"
+                f"**{i}. {clean_title}**\n"
+                f"{description_preview}\n"
+                f"🔗 {item.get('link', '')}"
             )
             formatted_results.append(formatted_result)
         
         response_text += "\n\n".join(formatted_results)
+        
+        logger.info(f"✅ 검색 결과 포맷팅 완료: {len(formatted_results)}개 항목")
         response_text += "\n\n더 궁금한 점 있나요? 😊"
         
         return response_text
