@@ -591,20 +591,61 @@ def fetch_webpage_content(url: str) -> str:
         # 네이버 블로그 특화 처리
         text = ""
         if "blog.naver.com" in url:
-            # 네이버 블로그 본문 영역
-            post_body = soup.find('div', class_='se-main-container')
-            if not post_body:
-                post_body = soup.find('div', id='postListBody')
-            if not post_body:
-                post_body = soup.find('div', class_='post-body')
-            if not post_body:
-                post_body = soup.find('div', class_='se-viewer')
+            # 방법 1: 네이버 블로그 본문 영역 (CSS 선택자)
+            selectors_to_try = [
+                'div.se-main-container',
+                'div#postListBody',
+                'div.post-body',
+                'div.se-viewer',
+                'div.se-component',
+                'div[role="main"]',
+                'article',
+            ]
             
-            if post_body:
-                text = post_body.get_text(separator='\n', strip=True)
-                logger.info(f"네이버 블로그 본문 추출 완료: {len(text)} chars")
-            else:
-                logger.warning(f"네이버 블로그 본문 영역을 찾을 수 없음: {url}")
+            for selector in selectors_to_try:
+                try:
+                    post_body = soup.select_one(selector)
+                    if post_body:
+                        text = post_body.get_text(separator='\n', strip=True)
+                        if len(text) > 100:
+                            logger.info(f"✅ 네이버 블로그 본문 추출 완료 (셀렉터: {selector}): {len(text)} chars")
+                            break
+                        else:
+                            text = ""  # 너무 짧으면 다음 선택자 시도
+                except Exception as e:
+                    logger.debug(f"선택자 실패 {selector}: {e}")
+                    continue
+            
+            # 방법 2: JSON 메타데이터에서 추출 (Naver 블로그 고유)
+            if not text or len(text) < 100:
+                try:
+                    import json
+                    import re
+                    
+                    # HTML에서 JSON 데이터 찾기
+                    json_pattern = r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>'
+                    json_matches = re.findall(json_pattern, response.text, re.DOTALL)
+                    
+                    for json_str in json_matches:
+                        try:
+                            json_data = json.loads(json_str)
+                            if isinstance(json_data, dict):
+                                # articleBody 또는 description 찾기
+                                if 'articleBody' in json_data:
+                                    text = json_data['articleBody']
+                                    logger.info(f"✅ JSON 메타데이터에서 추출: {len(text)} chars")
+                                    break
+                                elif 'description' in json_data:
+                                    text = json_data['description']
+                                    logger.info(f"✅ JSON description 추출: {len(text)} chars")
+                                    break
+                        except json.JSONDecodeError:
+                            continue
+                except Exception as e:
+                    logger.debug(f"JSON 메타데이터 추출 실패: {e}")
+            
+            if not text:
+                logger.warning(f"⚠️ 네이버 블로그 본문을 추출하지 못함: {url}")
         
         # 네이버 블로그가 아니거나 본문을 찾지 못한 경우
         if not text:
