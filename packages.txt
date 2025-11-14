@@ -1,7 +1,4 @@
 fonts-liberation
 libnss3
 libxss1
-libappindicator1
-libindicator7
 xvfb
-xdg-utils
