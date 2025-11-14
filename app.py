@@ -583,7 +583,7 @@ def show_chat_dashboard():
                     st.session_state.uploaded_pdf_file = uploaded_pdf
                     st.success(get_text("pdf_ready", lang, name=uploaded_pdf.name))
             
-            if st.button(get_text("clear_attachments", lang), key="clear_attachments", use_container_width=False):
+            if st.button(get_text("clear_attachments", lang), key="clear_attachments", use_container_width=False, type="secondary"):
                 st.session_state.uploaded_images = []
                 st.session_state.uploaded_pdf_file = None
                 st.session_state.uploader_key += 1
