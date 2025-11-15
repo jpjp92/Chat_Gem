@@ -30,18 +30,25 @@ GEMINI_CUSTOM_CSS = """
     }
     
     /* 작은 버튼들 (clear_attachments, confirm, cancel 등) */
-    button[kind="secondary"],
-    button:has-text("🗑️ 첨부 초기화"),
-    button:has-text("확인"),
-    button:has-text("취소"),
-    button:has-text("삭제"),
-    button:has-text("선택") {
-        padding: 0.5rem 1rem !important;
-        min-height: auto !important;
-        font-size: 0.85rem !important;
-        height: auto !important;
+    .stButton > button[kind="secondary"] {
+        padding: 0.3rem 0.8rem !important;
+        min-height: 36px !important;
+        height: 36px !important;
+        font-size: 0.9rem !important;
+        flex-direction: row !important; /* Override the column direction */
+        justify-content: center !important;
+        background: #f0f2f6 !important; /* A more standard secondary button color */
+        color: #333 !important;
+        border: 1px solid #d0d0d0 !important;
     }
-    
+
+    .stButton > button[kind="secondary"]:hover {
+        transform: none !important; /* Disable the large button hover effect */
+        box-shadow: none !important;
+        background: #e0e2e6 !important;
+        border-color: #c0c0c0 !important;
+    }
+
     .stButton > button:hover {
         transform: translateY(-8px) !important;
         box-shadow: 0 16px 32px rgba(102, 126, 234, 0.2) !important;
@@ -363,12 +370,24 @@ GEMINI_CUSTOM_CSS = """
    
 
     /* 첨부 초기화 버튼 기본 크기 */
-    .stButton button[data-testid="clear-attachments-btn"] {
-        width: auto !important;
-        min-width: 80px;
+    .stButton > button[data-testid="clear-attachments-btn"],
+    .stButton button[data-testid="clear-attachments-btn"],
+    button[data-testid="clear-attachments-btn"],
+    .stButton button:has-text("첨부 초기화") {
+        min-height: unset !important;
         height: 36px !important;
-        padding: 0 16px !important;
+        padding: 0.5rem 1rem !important;
         font-size: 1rem !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+        line-height: 1.2 !important;
+        border-radius: 8px !important;
+        background: #f5f7ff !important;
+        color: #222 !important;
+        border: 1px solid #eee !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
 </style>
