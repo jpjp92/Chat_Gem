@@ -1,8 +1,6 @@
 from config.imports import *
 from datetime import timezone
-from config.lang import get_text
-from config.validators import validate_nickname, validate_image_file
-from config.logincss import TRENDY_LOGIN_CSS
+from config.lang import get_text, get_language_options, get_lang_code_from_option
 
 
 def create_or_get_user(nickname):
@@ -89,6 +87,22 @@ def show_login_page():
         st.markdown("<style>.block-container{padding-top:1rem !important;} .stApp{background:#0f0f11;}</style>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        # 언어 선택 UI 추가
+        lang_options, lang_index = get_language_options(lang)
+        selected_lang_option = st.selectbox(
+            label="Language",  # 레이블은 보이지 않게 처리
+            options=lang_options,
+            index=lang_index,
+            label_visibility="collapsed"
+        )
+        
+        new_lang_code = get_lang_code_from_option(selected_lang_option)
+        
+        # 언어가 변경되면 세션 상태를 업데이트하고 앱을 다시 실행
+        if new_lang_code != lang:
+            st.session_state.system_language = new_lang_code
+            st.rerun()
+
         st.markdown(f"""
         <div style='text-align: center; margin-bottom: 2rem;'>
             <h1 style='font-size: 3rem; font-weight: 800; 
