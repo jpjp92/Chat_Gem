@@ -1,4 +1,5 @@
 from config.imports import *
+from config.logincss import TRENDY_LOGIN_CSS
 from datetime import timezone
 from config.lang import get_text, get_language_options, get_lang_code_from_option
 
