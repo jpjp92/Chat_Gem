@@ -55,11 +55,27 @@ cd Chat_Gem
 
 ### 2. Install Dependencies
 
-Install the required Python packages. If a requirements.txt file is not provided, use the following command to install the core dependencies:
+Install all required Python packages using the provided `requirements.txt`:
 
 ```bash
-pip install streamlit google-generativeai pillow python-dotenv requests
+pip install -r requirements.txt
 ```
+
+**Key dependencies:**
+- `streamlit`: Web UI framework
+- `google-generativeai`: Gemini API integration
+- `supabase`: Cloud session and storage management
+- `playwright`: Dynamic webpage extraction (e.g., Naver Blog)
+- `beautifulsoup4`, `requests`: Web crawling and parsing
+- `pypdf`, `arxiv`: PDF and academic paper summarization
+- `googlesearch-python`: Google search integration
+- `langdetect`: Language detection
+- `aiohttp`, `nest_asyncio`: Asynchronous processing
+- Others: `pandas`, `uuid`, `diskcache`, `timezonefinder`, `curl_cffi`, etc.
+
+> For some features (YouTube transcript, video download, etc.), you may optionally install:
+> `youtube_transcript_api`, `yt-dlp`, `webvtt-py`.
+> (These are currently commented out in requirements.txt)
 
 ### 3. Set Up Environment Variables
 
@@ -171,3 +187,16 @@ For inquiries, reach out via:
 
 - **GitHub**: jpjp92
 - **Email**: johnnyworld9278@gmail.com
+
+## 📦 Deployment
+
+### 1. Streamlit Cloud Deployment Guide
+
+To deploy on Streamlit Cloud, make sure you include the following files:
+- `requirements.txt`: Python package dependencies
+- `packages.txt`: System-level dependencies (for Playwright, etc.)
+- `.streamlit/config.toml`: Streamlit configuration
+
+**Playwright Browser Auto-Installation**
+- To use Playwright on Streamlit Cloud, both the `playwright` Python package and the required system dependencies in `packages.txt` must be present.
+- The browser binaries will be automatically installed on first run.
