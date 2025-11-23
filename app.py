@@ -1027,13 +1027,33 @@ def show_chat_dashboard():
                                 title = title_map.get(out_lang, title_map["en"])
                                 with st.chat_message("assistant"):
                                     st.markdown(f"**{title}**")
-                                    st.dataframe(df)
+                                    # remove the automatic integer index column for cleaner display
+                                    df_display = df.reset_index(drop=True)
+                                    st.dataframe(df_display, use_container_width=True)
                                     st.caption(f"{year}")
 
                                 # 히스토리 저장
                                 st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
                                 st.session_state.chat_history.append({"role": "model", "parts": [f"Displayed F1 standings for {year} ({source})"]})
-                                st.session_state.messages.append({"role": "assistant", "content": title})
+
+                                # Save a markdown version of the table into chat history so DB stores it
+                                try:
+                                    # build markdown table
+                                    headers_md = localized_headers
+                                    md_lines = []
+                                    md_lines.append("| " + " | ".join(headers_md) + " |")
+                                    md_lines.append("|" + "|".join(["---"] * len(headers_md)) + "|")
+                                    for r in data_rows:
+                                        # ensure r has the same length as headers
+                                        cells = [str(c) if c is not None else "" for c in r[:len(headers_md)]]
+                                        md_lines.append("| " + " | ".join(cells) + " |")
+                                    markdown_table = "\n".join(md_lines)
+                                    assistant_content = f"**{title}**\n\n{markdown_table}"
+                                except Exception as e:
+                                    logger.debug(f"F1 markdown build error: {e}")
+                                    assistant_content = title
+
+                                st.session_state.messages.append({"role": "assistant", "content": assistant_content})
                                 save_current_session()
                                 # avoid rerun which can clear transient UI; skip further model processing
                                 final_input = None

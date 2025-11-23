@@ -54,11 +54,27 @@ def detect_f1_intent(text: str):
     text_lower = (text or "").lower()
 
     # 1) Exact pattern check (quick confidence)
+    # helper: robust year extraction (matches '2024', '2024년', '24년')
+    def _extract_year(t: str):
+        # match full 20xx optionally followed by '년'
+        m = re.search(r"(20\d{2})(?=년|\b)", t)
+        if m:
+            return int(m.group(1))
+        # match two-digit year with '년' suffix e.g. '24년' -> 2024
+        m2 = re.search(r"\b(\d{2})년\b", t)
+        if m2:
+            yy = int(m2.group(1))
+            return 2000 + yy
+        # fallback to plain four-digit
+        m3 = re.search(r"\b(20\d{2})\b", t)
+        if m3:
+            return int(m3.group(1))
+        return None
+
     for lang, patterns in INTENT_PATTERNS.items():
         for p in patterns:
             if re.search(p, text_lower):
-                year_match = re.search(r"\b(20\d{2})\b", text_lower)
-                year = int(year_match.group(1)) if year_match else None
+                year = _extract_year(text_lower)
                 return {"lang": lang, "intent": "f1_rank", "year": year, "pattern": p}
 
     # 2) Scoring-based fallback (helpful for short / colloquial queries)
@@ -125,8 +141,19 @@ def detect_f1_intent_scored(text: str, threshold: float = 1.8):
             matched.append(kw)
 
     # year extraction boosts confidence
-    year_match = re.search(r"\b(20\d{2})\b", t)
-    year = int(year_match.group(1)) if year_match else None
+    # year extraction for scored fallback
+    year = None
+    m = re.search(r"(20\d{2})(?=년|\b)", t)
+    if m:
+        year = int(m.group(1))
+    else:
+        m2 = re.search(r"\b(\d{2})년\b", t)
+        if m2:
+            year = 2000 + int(m2.group(1))
+        else:
+            m3 = re.search(r"\b(20\d{2})\b", t)
+            if m3:
+                year = int(m3.group(1))
     if year:
         score += 0.8
         matched.append('year')
