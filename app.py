@@ -888,7 +888,16 @@ def show_chat_dashboard():
                                 reason = "f1_intent"
                                 logger.info("⏭️ F1 인텐트 감지: 웹 검색 생략")
                             else:
-                                need_search, reason = web_search_api.should_search(user_input)
+                                # follow-up detection: if we have a recent F1 table in session and
+                                # the user asks for top/top5/정리/요약, use that context instead of web search
+                                last_md = st.session_state.get("last_f1_table_md")
+                                if last_md and re.search(r"\b(top5|top 5|top-|top|상위|상위권|정리|요약|정리해|정리해줘|요약해)\b", user_input.lower()):
+                                    need_search = False
+                                    reason = "f1_context_followup"
+                                    search_context = last_md
+                                    logger.info("⏭️ F1 follow-up detected: using last F1 context as search_context")
+                                else:
+                                    need_search, reason = web_search_api.should_search(user_input)
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
                             if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
@@ -1025,11 +1034,68 @@ def show_chat_dashboard():
                                 # 사용자에게 바로 표시
                                 title_map = {"ko": f"F1 {year} 순위", "en": f"F1 {year} standings", "es": f"Clasificación F1 {year}"}
                                 title = title_map.get(out_lang, title_map["en"])
+                                # build markdown table for display and storage (no extra index column)
+                                headers_md = localized_headers
+                                md_lines = []
+                                md_lines.append(f"**{title}**")
+                                md_lines.append("")
+                                md_lines.append("| " + " | ".join(headers_md) + " |")
+                                md_lines.append("|" + "|".join(["---"] * len(headers_md)) + "|")
+                                for r in data_rows:
+                                    cells = [str(c) if c is not None else "" for c in r[:len(headers_md)]]
+                                    md_lines.append("| " + " | ".join(cells) + " |")
+                                markdown_table = "\n".join(md_lines)
+
+                                # save last F1 context for follow-up questions
+                                try:
+                                    st.session_state['last_f1_table_md'] = markdown_table
+                                    st.session_state['last_f1_year'] = year
+                                    st.session_state['last_f1_table_time'] = datetime.now().isoformat()
+                                except Exception:
+                                    pass
+
+                                # Build a small plain-text Top5 summary and show full table inside an expander
+                                try:
+                                    # try to find relevant column indices from raw headers
+                                    def _col_index(names, keywords, default):
+                                        for kw in keywords:
+                                            for i, h in enumerate(headers):
+                                                if kw in h.lower():
+                                                    return i
+                                        return default
+
+                                    driver_idx = _col_index(headers, ["driver", "name"], 1)
+                                    team_idx = _col_index(headers, ["team", "constructor"], 3)
+                                    points_idx = _col_index(headers, ["pt", "points", "pts"], 4)
+
+                                    top5 = data_rows[:5]
+                                    summary_lines = []
+                                    for r in top5:
+                                        try:
+                                            drv = str(r[driver_idx])
+                                        except Exception:
+                                            drv = ""
+                                        try:
+                                            tm = str(r[team_idx])
+                                        except Exception:
+                                            tm = ""
+                                        try:
+                                            pts = str(r[points_idx])
+                                        except Exception:
+                                            pts = ""
+                                        summary_lines.append(f"- {drv} ({tm}) — {pts} pts")
+
+                                    summary_text = "\n".join(summary_lines)
+
+                                except Exception as e:
+                                    logger.debug(f"Top5 build error: {e}")
+                                    summary_text = "(요약 생성 실패)"
+
+                                # show as plain chat message + expander for full table
                                 with st.chat_message("assistant"):
-                                    st.markdown(f"**{title}**")
-                                    # remove the automatic integer index column for cleaner display
-                                    df_display = df.reset_index(drop=True)
-                                    st.dataframe(df_display, use_container_width=True)
+                                    st.markdown(f"**{title}**\n\n{summary_text}")
+                                    with st.expander(get_text("view_full_table", out_lang) if 'get_text' in globals() else "전체 순위 보기"):
+                                        st.markdown(markdown_table)
                                     st.caption(f"{year}")
 
                                 # 히스토리 저장

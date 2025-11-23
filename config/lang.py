@@ -119,6 +119,7 @@ TEXTS = {
         
         # Footer
         "powered_by": "✨ Powered by",
+        "view_full_table": "전체 순위 보기",
     },
     "en": {
         # 페이지 제목 및 헤더
@@ -234,6 +235,7 @@ TEXTS = {
         
         # Footer
         "powered_by": "✨ Powered by",
+        "view_full_table": "View full standings",
     },
     "es": {
         # 페이지 제목 및 헤더
@@ -349,6 +351,7 @@ TEXTS = {
         
         # Footer
         "powered_by": "✨ Desarrollado por",
+        "view_full_table": "Ver clasificación completa",
     }
 }
 
