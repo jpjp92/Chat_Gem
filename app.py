@@ -1000,7 +1000,8 @@ def show_chat_dashboard():
                                     st.session_state.chat_history.append({"role": "model", "parts": [response]})
                                     st.session_state.messages.append({"role": "assistant", "content": response})
                                     save_current_session()
-                                    st.rerun()
+                                    # don't rerun here; set final_input to None to skip model flow
+                                    final_input = None
 
                                 rows = result.get("rows", [])
                                 meta = result.get("meta", {})
@@ -1034,7 +1035,9 @@ def show_chat_dashboard():
                                 st.session_state.chat_history.append({"role": "model", "parts": [f"Displayed F1 standings for {year} ({source})"]})
                                 st.session_state.messages.append({"role": "assistant", "content": title})
                                 save_current_session()
-                                st.rerun()
+                                # avoid rerun which can clear transient UI; skip further model processing
+                                final_input = None
+                                response = title
                             except Exception as e:
                                 logger.error(f"F1 display error: {e}")
                                 # 실패하면 일반 모델 처리로 폴백
@@ -1043,14 +1046,18 @@ def show_chat_dashboard():
                             # F1 인텐트가 아니면 일반 모델 처리
                             final_input = user_input
                     
-                        chat_session = response_model.start_chat(history=st.session_state.chat_history)
-                        try:
-                            status.update(label=get_text("processing_response", response_language))
-                            response = chat_session.send_message(final_input).text
-                            st.session_state.chat_history = chat_session.history
-                        except Exception as e:
-                            logger.error(f"Google Generative AI 서비스 오류: {e}")
-                            response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
+                        if final_input is not None:
+                            chat_session = response_model.start_chat(history=st.session_state.chat_history)
+                            try:
+                                status.update(label=get_text("processing_response", response_language))
+                                response = chat_session.send_message(final_input).text
+                                st.session_state.chat_history = chat_session.history
+                            except Exception as e:
+                                logger.error(f"Google Generative AI 서비스 오류: {e}")
+                                response = "죄송합니다. 현재 서비스에 문제가 있어 응답을 생성할 수 없습니다."
+                        else:
+                            # final_input is None -> F1 handler already handled the response; skip model call
+                            logger.info("F1 handled locally; skipping model call")
                     
                     status.update(label=get_text("processing_complete", response_language), state="complete")
 
@@ -1058,7 +1065,9 @@ def show_chat_dashboard():
             st.session_state.uploaded_images = []
             st.session_state.uploaded_pdf_file = None
             save_current_session()
-            st.rerun()
+            # Only trigger a rerun if we actually invoked the model flow.
+            if not ('final_input' in locals() and final_input is None):
+                st.rerun()
     
     # Footer (다국어 적용)
     st.markdown(f"""
