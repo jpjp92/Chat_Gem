@@ -84,6 +84,39 @@ from config.validators import (
     validate_pdf_file,
     process_image_for_gemini,
 )
+import pandas as pd
+
+# F1 intent / scraper / i18n helpers
+try:
+    from config.intents import detect_f1_intent, detect_f1_intent_scored
+    from config.scrapers.f1_scraper import fetch_drivers
+    from config.i18n import localize_headers
+except Exception as e:
+    # Fail-safe: importing these should not break app if files missing during development
+    logger.warning(f"F1 helper modules import warning: {e}")
+    def detect_f1_intent(text):
+        return None
+    def detect_f1_intent_scored(text, threshold=1.8):
+        return None
+    def fetch_drivers(year, max_length=5000, timeout=15):
+        return {"success": False, "error": "f1 scraper not available"}
+    def localize_headers(headers, lang):
+        return headers
+
+# Supabase cache helpers (optional - config/cache_utils may implement these)
+try:
+    from config.cache_utils import (
+        load_cached_drivers_supabase,
+        save_cached_drivers_supabase,
+        is_cache_fresh_supabase,
+    )
+except Exception:
+    def load_cached_drivers_supabase(year):
+        return None
+    def save_cached_drivers_supabase(year, rows, meta):
+        return None
+    def is_cache_fresh_supabase(year, ttl_seconds=3600):
+        return False
 
 # Import usage manager
 from config.usage_manager import (
@@ -921,8 +954,82 @@ def show_chat_dashboard():
                             st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
                             st.session_state.chat_history.append({"role": "model", "parts": [response]})
                     else:
-                        # 검색 결과가 없으면 일반 모델 응답
-                        final_input = user_input
+                        # 검색 결과가 없으면 먼저 F1 관련 인텐트인지 확인
+                        try:
+                            f1_intent = detect_f1_intent(user_input)
+                        except Exception as e:
+                            logger.warning(f"F1 intent detection error: {e}")
+                            f1_intent = None
+
+                        if f1_intent and f1_intent.get("intent") == "f1_rank":
+                            # year 추출 또는 기본 현재 연도
+                            year = f1_intent.get("year") or datetime.now().year
+
+                            # 캐시 확인 (Supabase 사용 여부는 env로 결정)
+                            cached = None
+                            try:
+                                use_supabase = os.environ.get("USE_SUPABASE", "0") == "1"
+                                ttl = int(os.environ.get("F1_CACHE_TTL", "3600"))
+                                if use_supabase and is_cache_fresh_supabase(year, ttl):
+                                    cached = load_cached_drivers_supabase(year)
+                            except Exception as e:
+                                logger.debug(f"F1 cache check error: {e}")
+
+                            if cached and isinstance(cached, dict) and cached.get("rows"):
+                                rows = cached.get("rows")
+                                meta = cached.get("meta", {})
+                                source = "supabase_cache"
+                            else:
+                                # 라이브로 가져오기
+                                result = fetch_drivers(year)
+                                if not result.get("success"):
+                                    response = result.get("error", "❌ F1 정보를 가져오지 못했습니다.")
+                                    st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
+                                    st.session_state.chat_history.append({"role": "model", "parts": [response]})
+                                    st.session_state.messages.append({"role": "assistant", "content": response})
+                                    save_current_session()
+                                    st.rerun()
+
+                                rows = result.get("rows", [])
+                                meta = result.get("meta", {})
+                                source = meta.get("source", "live")
+
+                                # 캐시에 저장 시도
+                                try:
+                                    if os.environ.get("USE_SUPABASE", "0") == "1":
+                                        save_cached_drivers_supabase(year, rows, meta)
+                                except Exception as e:
+                                    logger.debug(f"F1 cache save error: {e}")
+
+                            # DataFrame으로 변환하여 바로 출력
+                            try:
+                                headers = rows[0] if rows else []
+                                data_rows = rows[1:] if len(rows) > 1 else []
+                                out_lang = detect_response_language(user_input, st.session_state.system_language)
+                                localized_headers = localize_headers(headers, out_lang)
+                                df = pd.DataFrame(data_rows, columns=localized_headers)
+
+                                # 사용자에게 바로 표시
+                                title_map = {"ko": f"F1 {year} 순위", "en": f"F1 {year} standings", "es": f"Clasificación F1 {year}"}
+                                title = title_map.get(out_lang, title_map["en"])
+                                with st.chat_message("assistant"):
+                                    st.markdown(f"**{title}**")
+                                    st.dataframe(df)
+                                    st.caption(f"{year}")
+
+                                # 히스토리 저장
+                                st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
+                                st.session_state.chat_history.append({"role": "model", "parts": [f"Displayed F1 standings for {year} ({source})"]})
+                                st.session_state.messages.append({"role": "assistant", "content": title})
+                                save_current_session()
+                                st.rerun()
+                            except Exception as e:
+                                logger.error(f"F1 display error: {e}")
+                                # 실패하면 일반 모델 처리로 폴백
+                                final_input = user_input
+                        else:
+                            # F1 인텐트가 아니면 일반 모델 처리
+                            final_input = user_input
                     
                         chat_session = response_model.start_chat(history=st.session_state.chat_history)
                         try:
