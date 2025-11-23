@@ -888,16 +888,49 @@ def show_chat_dashboard():
                                 reason = "f1_intent"
                                 logger.info("⏭️ F1 인텐트 감지: 웹 검색 생략")
                             else:
-                                # follow-up detection: if we have a recent F1 table in session and
-                                # the user asks for top/top5/정리/요약, use that context instead of web search
+                                # follow-up detection: prefer stored F1 context when user refers
+                                # to the previous table/result (examples: '여기서', '이 표', '이 결과',
+                                # 'based on this', 'from this list', '정리', 'top5' etc.). Also
+                                # if the user input is short and we have a recent table, assume
+                                # follow-up intent.
                                 last_md = st.session_state.get("last_f1_table_md")
-                                if last_md and re.search(r"\b(top5|top 5|top-|top|상위|상위권|정리|요약|정리해|정리해줘|요약해)\b", user_input.lower()):
+                                is_followup = False
+                                if last_md:
+                                    u = user_input.lower()
+                                    # anaphora / reference patterns (KO/EN/ES)
+                                    ref_patterns = [
+                                        r"\b(여기서|이 표|이 결과|이 목록|이 순위|이 데이터|이 내용|여기|지금 여기)\b",
+                                        r"\b(based on this|from this list|this table|this list|this result|from this)\b",
+                                        r"\b(top5|top 5|top|상위|상위권|정리|요약|정리해|정리해줘|요약해|요약해줘)\b",
+                                        r"\b(quien|quién|resumen|top)\b",
+                                    ]
+                                    for pat in ref_patterns:
+                                        if re.search(pat, u):
+                                            is_followup = True
+                                            break
+
+                                    # also consider short/clarifying follow-ups (< 60 chars)
+                                    if not is_followup and len(u.strip()) <= 60:
+                                        # if question words or pronouns present, treat as follow-up
+                                        if re.search(r"\b(누구|어떤|누가|몇|how many|who|which|where|어디|언제|지금)\b", u):
+                                            is_followup = True
+
+                                if last_md and is_followup:
                                     need_search = False
                                     reason = "f1_context_followup"
                                     search_context = last_md
                                     logger.info("⏭️ F1 follow-up detected: using last F1 context as search_context")
                                 else:
-                                    need_search, reason = web_search_api.should_search(user_input)
+                                    # Only perform web search if the user explicitly asked for a search
+                                    # using common search trigger words in KO/EN/ES. Otherwise skip.
+                                    search_triggers = [r"\b검색\b", r"\bsearch\b", r"\bbuscar\b", r"\blook up\b", r"\bgoogle\b"]
+                                    asked_search = any(re.search(p, user_input.lower()) for p in search_triggers)
+                                    if asked_search:
+                                        need_search, reason = web_search_api.should_search(user_input)
+                                    else:
+                                        need_search = False
+                                        reason = "no_search_keyword"
+                                        logger.info("⏭️ 웹 검색 생략(명시적 검색 요청 없음)")
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
                             if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
