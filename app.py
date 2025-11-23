@@ -876,7 +876,19 @@ def show_chat_dashboard():
                     if st.session_state.api_manager:
                         try:
                             web_search_api = st.session_state.api_manager['apis']['web_search']
-                            need_search, reason = web_search_api.should_search(user_input)
+                            # Prioritize F1 intent: if user asks about F1 standings, skip web search
+                            try:
+                                f1_intent_check = detect_f1_intent(user_input)
+                            except Exception as e:
+                                logger.debug(f"F1 intent pre-check error: {e}")
+                                f1_intent_check = None
+
+                            if f1_intent_check and f1_intent_check.get("intent") == "f1_rank":
+                                need_search = False
+                                reason = "f1_intent"
+                                logger.info("⏭️ F1 인텐트 감지: 웹 검색 생략")
+                            else:
+                                need_search, reason = web_search_api.should_search(user_input)
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
                             if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):
