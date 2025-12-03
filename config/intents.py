@@ -24,24 +24,56 @@ def _fallback_detect(text: str) -> str:
 if not _HAS_LANGDETECT:
     detect = _fallback_detect
 
+# ============================================================
+# 부정 키워드: F1 관련이지만 순위가 아닌 주제들
+# ============================================================
+NEGATIVE_KEYWORDS = [
+    # 한국어
+    r"\b룰\b", r"\b규칙\b", r"\b규정\b", r"\b레귤레이션\b",
+    r"\b역사\b", r"\b히스토리\b",
+    r"\b팀\b", r"\b엔진\b", r"\b서킷\b", r"\b트랙\b",
+    r"\b뉴스\b", r"\b소식\b", r"\b하이라이트\b",
+    r"\b설명\b", r"\b이란\b", r"\b뭐야\b", r"\b무엇\b",
+    r"\b차량\b", r"\b머신\b", r"\b타이어\b",
+    # English
+    r"\brules?\b", r"\bregulations?\b",
+    r"\bhistory\b", r"\bstory\b",
+    r"\bteams?\b", r"\bengines?\b", r"\bcircuits?\b", r"\btracks?\b",
+    r"\bnews\b", r"\bhighlights?\b",
+    r"\bexplain\b", r"\bwhat is\b", r"\bwhat's\b",
+    r"\bcars?\b", r"\bvehicles?\b", r"\btires?\b", r"\btyres?\b",
+    # Español
+    r"\breglas?\b", r"\breglamentos?\b",
+    r"\bhistoria\b",
+    r"\bequipos?\b", r"\bmotores?\b", r"\bcircuitos?\b", r"\bpistas?\b",
+    r"\bnoticias?\b",
+    r"\bexplicar\b", r"\bqué es\b",
+    r"\bautos?\b", r"\bcoches?\b", r"\bneumáticos?\b",
+]
+
+# ============================================================
+# 순위 관련 명시적 키워드를 포함한 패턴만 매칭
+# ============================================================
 INTENT_PATTERNS = {
     "ko": [
+        # 명시적으로 "순위" 관련 키워드가 포함된 경우만
         r"\bF1\s*순위\b",
         r"\b현재\s*F1\s*순위\b",
-        r"F1.*(순위|랭킹|순위표)",
-        r"F-?1\b",
-        r"에프원",
-        r"F1.*(알려줘|보여줘|주세요|볼래|좀|알려줄)",
-        r"(지금|현재|최신).{0,8}F1",
-        r"(F1|에프원).{0,8}(순위|랭킹|순위표)",
+        r"\b(F1|에프원)\s*(순위|랭킹|순위표|랭킹표)\b",
+        r"\b(순위|랭킹)\s*(알려줘|보여줘|주세요|볼래|좀)\b.*\b(F1|에프원)\b",
+        r"\b(F1|에프원)\s*(드라이버|선수)\s*순위\b",
+        # "현재/지금/최신" + F1 + 순위 관련
+        r"\b(지금|현재|최신)\s*(F1|에프원)\s*(순위|랭킹)\b",
     ],
     "en": [
-        r"\b(f1|formula\s*1)\b.*\b(standings|rankings|table|positions)\b",
-        r"\bdriver\s*standings\b",
+        r"\b(f1|formula\s*1)\s*(driver\s*)?(standings|rankings|table|positions|leaderboard)\b",
+        r"\b(current|latest)?\s*driver\s*standings\b",
+        r"\b(show|tell|give)\s*(me)?\s*(the)?\s*(f1|formula\s*1)\s*(standings|rankings)\b",
     ],
     "es": [
-        r"\b(f1|formula\s*1)\b.*\b(clasificaci[oó]n|posiciones|tabla)\b",
-        r"\bclasificaci[oó]n\b",
+        r"\b(f1|formula\s*1)\s*(clasificaci[oó]n|posiciones|tabla|ranking)\b",
+        r"\b(clasificaci[oó]n|posiciones)\s*(de)?\s*(pilotos|f1|formula\s*1)\b",
+        r"\b(muestra|dame|dime)\s*(la)?\s*(clasificaci[oó]n|tabla)\s*(de)?\s*f1\b",
     ],
 }
 
@@ -52,6 +84,12 @@ def detect_f1_intent(text: str):
     Returns: dict {lang, intent, year, pattern}
     """
     text_lower = (text or "").lower()
+
+    # 0) 부정 키워드 체크 - 순위가 아닌 다른 주제를 물어보는 경우
+    for neg_kw in NEGATIVE_KEYWORDS:
+        if re.search(neg_kw, text_lower):
+            # 순위가 아닌 다른 주제이므로 즉시 None 반환
+            return {"lang": None, "intent": None, "year": None, "pattern": None}
 
     # 1) Exact pattern check (quick confidence)
     # helper: robust year extraction (matches '2024', '2024년', '24년')
@@ -102,37 +140,72 @@ def detect_f1_intent(text: str):
 
 ### Scoring-based detection
 KW_WEIGHTS = {
-    # high value keywords
-    "f1": 1.0,
-    "f-1": 1.0,
-    "에프원": 1.0,
-    # intent words
-    "순위": 0.8,
-    "랭킹": 0.8,
-    "standings": 0.8,
-    "clasificación": 0.8,
-    "posiciones": 0.8,
-    # action words
-    "알려줘": 0.5,
-    "보여줘": 0.5,
-    "show": 0.5,
-    "show me": 0.6,
+    # F1 기본 키워드 (낮게 설정)
+    "f1": 0.8,
+    "f-1": 0.8,
+    "에프원": 0.8,
+    "formula 1": 1.0,
+    # 순위 관련 명시적 키워드 (높게 설정)
+    "순위": 1.2,
+    "랭킹": 1.2,
+    "standings": 1.2,
+    "ranking": 1.2,
+    "clasificación": 1.2,
+    "posiciones": 1.2,
+    "leaderboard": 1.0,
+    "순위표": 1.2,
+    # 보조 키워드 (낮게 설정)
+    "driver": 0.3,
+    "드라이버": 0.3,
+    "알려줘": 0.2,
+    "보여줘": 0.2,
+    "show": 0.2,
+    "현재": 0.3,
+    "current": 0.3,
+    "latest": 0.3,
+    "최신": 0.3,
+}
+
+# 부정 키워드는 점수에서 차감
+NEGATIVE_KW_WEIGHTS = {
+    "룰": -2.0,
+    "규칙": -2.0,
+    "규정": -2.0,
+    "rule": -2.0,
+    "rules": -2.0,
+    "regulation": -2.0,
+    "역사": -1.5,
+    "history": -1.5,
+    "뉴스": -1.5,
+    "news": -1.5,
+    "설명": -1.0,
+    "explain": -1.0,
+    "팀": -1.0,
+    "team": -0.8,
+    "엔진": -1.0,
+    "engine": -1.0,
 }
 
 
-def detect_f1_intent_scored(text: str, threshold: float = 1.8):
+def detect_f1_intent_scored(text: str, threshold: float = 2.2):
     """Score-based intent detection. Returns dict similar to detect_f1_intent.
 
-    Threshold tuned to allow short queries like 'F1 순위' or 'F1순위 알려줘'.
+    Threshold raised to 2.2 to require explicit ranking-related keywords.
+    Negative keywords subtract from the score.
     """
     t = (text or "").lower()
     score = 0.0
     matched = []
 
     # presence of F1
-    if re.search(r"\bf-?1\b|에프원|f1", t):
-        score += 1.0
-        matched.append('f1')
+    if re.search(r"\bf-?1\b|에프원|formula\s*1", t):
+        # F1만으로는 낮은 점수
+        if "formula 1" in t or "formula1" in t:
+            score += 1.0
+            matched.append('formula_1')
+        else:
+            score += 0.8
+            matched.append('f1')
 
     # keyword weights
     for kw, w in KW_WEIGHTS.items():
@@ -140,8 +213,13 @@ def detect_f1_intent_scored(text: str, threshold: float = 1.8):
             score += w
             matched.append(kw)
 
+    # negative keyword penalties
+    for neg_kw, penalty in NEGATIVE_KW_WEIGHTS.items():
+        if neg_kw in t:
+            score += penalty  # penalty는 음수
+            matched.append(f'negative:{neg_kw}')
+
     # year extraction boosts confidence
-    # year extraction for scored fallback
     year = None
     m = re.search(r"(20\d{2})(?=년|\b)", t)
     if m:
@@ -155,7 +233,7 @@ def detect_f1_intent_scored(text: str, threshold: float = 1.8):
             if m3:
                 year = int(m3.group(1))
     if year:
-        score += 0.8
+        score += 0.5
         matched.append('year')
 
     intent = None
@@ -163,3 +241,4 @@ def detect_f1_intent_scored(text: str, threshold: float = 1.8):
         intent = 'f1_rank'
 
     return {"lang": None, "intent": intent, "year": year, "score": score, "matched": matched}
+

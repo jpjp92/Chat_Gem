@@ -921,16 +921,10 @@ def show_chat_dashboard():
                                     search_context = last_md
                                     logger.info("⏭️ F1 follow-up detected: using last F1 context as search_context")
                                 else:
-                                    # Only perform web search if the user explicitly asked for a search
-                                    # using common search trigger words in KO/EN/ES. Otherwise skip.
-                                    search_triggers = [r"\b검색\b", r"\bsearch\b", r"\bbuscar\b", r"\blook up\b", r"\bgoogle\b"]
-                                    asked_search = any(re.search(p, user_input.lower()) for p in search_triggers)
-                                    if asked_search:
-                                        need_search, reason = web_search_api.should_search(user_input)
-                                    else:
-                                        need_search = False
-                                        reason = "no_search_keyword"
-                                        logger.info("⏭️ 웹 검색 생략(명시적 검색 요청 없음)")
+                                    # ✨ 개선된 should_search() 메서드에 검색 판단 위임
+                                    # 스코어링 시스템으로 실시간 정보 필요성 자동 판단
+                                    need_search, reason = web_search_api.should_search(user_input)
+
                             
                             # 날씨 쿼리이고 OpenWeatherMap API가 성공한 경우 웹 검색 생략
                             if weather_result is not None and ("날씨" in user_input.lower() or "weather" in user_input.lower()):

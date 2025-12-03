@@ -105,7 +105,7 @@ class WebSearchAPI:
 
     def should_search(self, query):
         """
-        간단한 규칙 기반의 검색 필요 판단기입니다.
+        개선된 검색 필요 판단기 (스코어링 + 부정 키워드 시스템)
         반환: (bool, reason)
         - True: 검색이 필요함
         - False: 검색 불필요, 이유 문자열 반환
@@ -115,103 +115,168 @@ class WebSearchAPI:
 
         q = query.lower()
         
-        # 짧은 추가 질문은 검색하지 않음 (이전 대화 컨텍스트 활용)
-        # "온도는?", "습도는?", "얼마야?" 같은 짧은 질문
+        # ========================================
+        # 0. 짧은 추가 질문 필터링 (이전 컨텍스트 활용)
+        # ========================================
         short_followup_patterns = [
-            r'^[가-힣]{1,3}[는은]?\?*$',  # "온도는?", "습도?"
-            r'^[가-힣]{1,5}[요야]?\?*$',  # "얼마야?", "몇도요?"
-            r'^정확한\s*[가-힣]{2,4}',    # "정확한 온도"
-            r'^구체적인\s*[가-힣]{2,4}',  # "구체적인 습도"
-            r'^\w{1,10}\?*$',            # 영어 단어 하나 "temperature?"
+            r'^[가-힣]{1,3}[는은]?\\?*$',  # "온도는?", "습도?"
+            r'^[가-힣]{1,5}[요야]?\\?*$',  # "얼마야?", "몇도요?"
+            r'^정확한\\s*[가-힣]{2,4}',    # "정확한 온도"
+            r'^구체적인\\s*[가-힣]{2,4}',  # "구체적인 습도"
+            r'^\\w{1,10}\\?*$',            # 영어 단어 하나 "temperature?"
         ]
         
         for pattern in short_followup_patterns:
             if re.search(pattern, q):
                 return False, "추가 질문 (이전 컨텍스트 활용)"
 
-        # 키워드 기반 필터 (한국어, 영어, 스페인어)
-        realtime_keywords = [
-            # 한국어
-            '오늘', '최신', '최근', '실시간', '뉴스', '주가', '환율', '날씨', '증시', '속보', '업데이트', '현재', '지금',
-            # 스포츠 관련
-            '순위', '리그', '경기', '결과', '스코어',
-            # 금융/암호화폐 관련
-            '시세', '가격', '비트코인', '이더리움', '코인',
-            # 날씨/시간 관련
-            '기온', '온도', '습도', '강수량', '시간대',
-            # 의약품/건강 관련 (정확한 정보 제공을 위해)
-            '효능', '부작용', '복용법', '용량', '처방', '의약품', '약품',
-            # 검색 의도 명시적 표현
-            '검색', '찾아', '알려', '궁금', '정보', '어떻게', '무엇', '누구',
+        # ========================================
+        # 1. 부정 키워드 체크 (일반 지식/설명 요청)
+        # ========================================
+        NEGATIVE_KEYWORDS = [
+            # 일반 설명/정의 요청 (한국어)
+            r"\\b설명해\\b", r"\\b설명\\b", r"\\b이란\\b", r"\\b뭐야\\b", r"\\b무엇\\b",
+            r"\\b뭔지\\b", r"\\b의미\\b", r"\\b개념\\b", r"\\b정의\\b",
+            r"\\b이해\\b", r"\\b알려줘\\b(?!.*검색)", # "알려줘"만 단독으로 (검색 없이)
+            # 비교/추천 (검색 불필요)
+            r"\\b차이\\b", r"\\b비교\\b", r"\\b추천\\b", r"\\b좋은\\b", r"\\b나은\\b",
+            # 의견/생각 요청
+            r"\\b생각해\\b", r"\\b의견\\b", r"\\b어떻게 생각\\b",
+            # 역사/이론/학문
+            r"\\b역사\\b", r"\\b기원\\b", r"\\b유래\\b", r"\\b이론\\b",
+            r"\\b철학\\b", r"\\b원리\\b", r"\\b과학\\b", r"\\b수학\\b",
+            # 일반 대화
+            r"\\b안녕\\b", r"\\b감사\\b", r"\\b고마워\\b", r"\\b미안\\b",
             
-            # 영어 (English)
-            'today', 'latest', 'recent', 'real-time', 'realtime', 'live', 'news', 'stock', 
-            'exchange rate', 'weather', 'breaking', 'update', 'current', 'now',
-            # 스포츠
-            'ranking', 'rankings', 'league', 'match', 'game', 'score', 'scores', 'result', 'results',
-            # 금융/암호화폐
-            'price', 'bitcoin', 'ethereum', 'crypto', 'coin',
-            # 날씨/시간
-            'temperature', 'humidity', 'rainfall', 'time zone', 'time',
-            # 의약품
-            'medicine', 'drug', 'medication', 'dosage', 'side effect', 'side effects',
-            'prescription', 'tylenol', 'aspirin', 'ibuprofen',
-            # 검색 의도
-            'search', 'find', 'tell me', 'what is', 'who is', 'how to', 'information', 'info',
+            # 영어
+            r"\\bexplain\\b", r"\\bwhat is\\b", r"\\bwhat's\\b", r"\\bwhat are\\b",
+            r"\\bdefine\\b", r"\\bdefinition\\b", r"\\bmeaning\\b", r"\\bconcept\\b",
+            r"\\btell me about\\b(?!.*(latest|recent|current))", # "tell me about"만 단독
+            r"\\bcompare\\b", r"\\bdifference\\b", r"\\brecommend\\b",
+            r"\\bopinion\\b", r"\\bthink\\b", r"\\bbelieve\\b",
+            r"\\bhistory\\b", r"\\btheory\\b", r"\\borigin\\b", r"\\bphilosophy\\b",
+            r"\\bhello\\b", r"\\bthanks\\b", r"\\bthank you\\b", r"\\bsorry\\b",
             
-            # 스페인어 (Español)
-            'hoy', 'últimas', 'último', 'reciente', 'recientes', 'tiempo real', 'noticias', 
-            'bolsa', 'tipo de cambio', 'tiempo', 'actual', 'ahora',
-            # 스포츠
-            'clasificación', 'liga', 'partido', 'resultado', 'resultados', 'marcador',
-            # 금융/암호화폐
-            'precio', 'bitcoin', 'ethereum', 'cripto', 'moneda',
-            # 날씨/시간
-            'temperatura', 'humedad', 'lluvia', 'zona horaria', 'hora',
-            # 의약품
-            'medicina', 'medicamento', 'dosis', 'efectos secundarios', 'receta',
-            # 검색 의도
-            'buscar', 'encontrar', 'qué es', 'quién es', 'cómo', 'información',
+            # 스페인어
+            r"\\bexplicar\\b", r"\\bqué es\\b", r"\\bcuál es\\b",
+            r"\\bdefinir\\b", r"\\bdefinición\\b", r"\\bsignificado\\b",
+            r"\\bcomparar\\b", r"\\bdiferencia\\b", r"\\brecomendar\\b",
+            r"\\bopinión\\b", r"\\bpensar\\b", r"\\bcreer\\b",
+            r"\\bhistoria\\b", r"\\bteoría\\b", r"\\borigen\\b",
+            r"\\bhola\\b", r"\\bgracias\\b", r"\\bperdón\\b",
         ]
-        for kw in realtime_keywords:
+        
+        for neg_pattern in NEGATIVE_KEYWORDS:
+            if re.search(neg_pattern, q):
+                # 단, 실시간 키워드와 함께 사용되면 검색 허용
+                realtime_override = ['최신', '현재', '실시간', '오늘', 'latest', 'current', 'today', 'now']
+                if not any(rt in q for rt in realtime_override):
+                    return False, f"일반 대화/설명 요청 감지: {neg_pattern}"
+
+        # ========================================
+        # 2. 명시적 검색 의도 체크 (우선순위 최상위)
+        # ========================================
+        EXPLICIT_SEARCH_KEYWORDS = [
+            # 한국어
+            r"\\b검색\\b", r"\\b찾아봐\\b", r"\\b찾아줘\\b", r"\\b조회\\b",
+            r"\\b검색해\\b", r"\\b알아봐\\b",
+            # 영어
+            r"\\bsearch\\b", r"\\blook up\\b", r"\\bfind out\\b",
+            r"\\bgoogle\\b", r"\\bcheck\\b",
+            # 스페인어
+            r"\\bbuscar\\b", r"\\bbusca\\b", r"\\bconsultar\\b",
+        ]
+        
+        for search_kw in EXPLICIT_SEARCH_KEYWORDS:
+            if re.search(search_kw, q):
+                return True, f"명시적 검색 요청: {search_kw}"
+
+        # ========================================
+        # 3. 스코어링 시스템 (실시간 정보 필요성 평가)
+        # ========================================
+        score = 0.0
+        matched_reasons = []
+        
+        # 3.1) 실시간 필수 정보 (높은 점수)
+        REALTIME_CRITICAL = {
+            # 날씨 (1.5점)
+            '날씨': 1.5, 'weather': 1.5, 'tiempo': 1.5,
+            '기온': 1.5, 'temperature': 1.5, 'temperatura': 1.5,
+            # 금융 (1.5점)
+            '주가': 1.5, 'stock': 1.5, 'bolsa': 1.5,
+            '환율': 1.5, 'exchange rate': 1.5, 'tipo de cambio': 1.5,
+            '비트코인': 1.3, 'bitcoin': 1.3,
+            # 뉴스/속보 (1.5점)
+            '뉴스': 1.5, 'news': 1.5, 'noticias': 1.5,
+            '속보': 1.5, 'breaking': 1.5,
+        }
+        
+        for kw, points in REALTIME_CRITICAL.items():
             if kw in q:
-                return True, f"키워드 감지: {kw}"
-
-        # 약품명 패턴 감지 (~~정, ~~약, ~~제, ~~캡슐 등)
-        medicine_pattern = r'(타이레놀|아스피린|게보린|판콜|훼스탈|펜잘|이부프로펜|덱시부프로펜|' \
-                          r'아세트아미노펜|감기약|진통제|소화제|해열제|항생제|연고|파스)'
-        if re.search(medicine_pattern, q):
-            return True, "의약품명 감지"
+                score += points
+                matched_reasons.append(f'{kw}(+{points})')
         
-        # 약품 형태 감지 (정, 캡슐, 시럽 등)
-        if re.search(r'\w+(정|캡슐|시럽|액|연고|패치)(\s|$)', q):
-            return True, "의약품 형태 감지"
-
-        # 지역별 실시간 정보 요청 감지
-        # "서울 날씨", "뉴욕 시간", "도쿄 기온" 등의 패턴
-        location_time_weather_pattern = r'(서울|부산|인천|대구|대전|광주|제주|경기|강원|충청|전라|경상|' \
-                                       r'뉴욕|런던|도쿄|파리|베이징|상하이|LA|시드니|베를린|로마|바르셀로나|' \
-                                       r'방콕|싱가포르|두바이|모스크바|시카고|토론토|멜버른|홍콩|타이베이|' \
-                                       r'서울의?|부산의?|뉴욕의?|도쿄의?|파리의?|런던의?).*' \
-                                       r'(날씨|기온|시간|몇\s*시|타임|온도|습도)'
-        if re.search(location_time_weather_pattern, q):
-            return True, "지역 + 실시간 정보 요청 감지"
-
-        # 날짜/시간 관련 패턴(예: '2025', '2024', '10월', '어제', '방금')
-        # 연도 패턴 강화: 2020-2030 범위의 4자리 숫자 (년, 년도 등 접미사 포함)
+        # 3.2) 시간성 키워드 (중간 점수)
+        TEMPORAL_KEYWORDS = {
+            '오늘': 1.0, 'today': 1.0, 'hoy': 1.0,
+            '현재': 1.0, 'current': 1.0, 'actual': 1.0,
+            '지금': 1.0, 'now': 1.0, 'ahora': 1.0,
+            '최신': 1.0, 'latest': 1.0, 'último': 1.0,
+            '최근': 0.8, 'recent': 0.8, 'reciente': 0.8,
+            '실시간': 1.2, 'real-time': 1.2, 'tiempo real': 1.2,
+        }
+        
+        for kw, points in TEMPORAL_KEYWORDS.items():
+            if kw in q:
+                score += points
+                matched_reasons.append(f'{kw}(+{points})')
+        
+        # 3.3) 의약품 (안전을 위해 검색 권장)
+        MEDICINE_KEYWORDS = {
+            '타이레놀': 1.5, 'tylenol': 1.5,
+            '아스피린': 1.5, 'aspirin': 1.5,
+            '부작용': 1.3, 'side effect': 1.3, 'efectos secundarios': 1.3,
+            '복용법': 1.3, 'dosage': 1.3, 'dosis': 1.3,
+            '효능': 1.0, 'efficacy': 1.0,
+        }
+        
+        for kw, points in MEDICINE_KEYWORDS.items():
+            if kw in q:
+                score += points
+                matched_reasons.append(f'{kw}(+{points})')
+        
+        # 3.4) 지역 + 날씨/시간 조합 (강력한 실시간 지표)
+        location_weather_pattern = r'(서울|부산|인천|뉴욕|런던|도쿄|파리|베이징|LA|시드니).*(날씨|기온|시간|온도|weather|temperature)'
+        if re.search(location_weather_pattern, q):
+            score += 2.0
+            matched_reasons.append('지역+날씨(+2.0)')
+        
+        # 3.5) 날짜/연도 포함 (중간 점수)
         if re.search(r'(202[0-9]|203[0-9])년?', q):
-            return True, "연도 정보 감지"
+            score += 0.8
+            matched_reasons.append('연도(+0.8)')
         
-        if re.search(r'\b(\d{1,2}월|어제|오늘|내일|방금)\b', q):
-            return True, "날짜/시간 관련 표현 감지"
-
-        # 질문형이면서 최신성 요구가 암시되는 경우
-        if any(w in q for w in ['어떻게', '언제', '몇', '얼마나', '변경', '바뀌', '조회']):
-            if any(r in q for r in ['최근', '최신', '지금', '현재']):
-                return True, "질문형 + 최신성 요구 감지"
-
-        # 기본: 검색 불필요
-        return False, '키워드/패턴 미검출'
+        if re.search(r'\\b(\\d{1,2}월|어제|내일|방금)\\b', q):
+            score += 0.5
+            matched_reasons.append('날짜(+0.5)')
+        
+        # ========================================
+        # 4. Threshold 판단 (2.5 이상이면 검색)
+        # ========================================
+        THRESHOLD = 2.5
+        
+        if score >= THRESHOLD:
+            reason = f"실시간 정보 필요 (점수: {score:.1f}/{THRESHOLD}, 매칭: {', '.join(matched_reasons)})"
+            logger.info(f"✅ 검색 허용: {reason}")
+            return True, reason
+        
+        # ========================================
+        # 5. 기본: 검색 불필요
+        # ========================================
+        if score > 0:
+            return False, f'점수 부족 ({score:.1f} < {THRESHOLD})'
+        else:
+            return False, '실시간 정보 불필요 (일반 대화)'
 
     def get_function_signature(self):
         """
