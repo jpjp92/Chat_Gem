@@ -19,3 +19,4 @@ playwright
 # webvtt-py
 aiohttp
 nest_asyncio
+google-generativeai

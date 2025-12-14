@@ -127,8 +127,8 @@ from config.usage_manager import (
 # Import session manager
 from config.session_manager import initialize_session_state, create_new_chat_session, save_current_session, load_session, delete_session, export_chat_session
 
-# Login UI moved to config/login.py
-from config.login import show_login_page, create_or_get_user
+# Login UI moved to config/login_html.py
+from config.login_html import show_login_page, create_or_get_user
 
 # Import API manager for web search
 from config.api_manager import initialize_apis
