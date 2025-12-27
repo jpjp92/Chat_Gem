@@ -1224,6 +1224,32 @@ def main():
         # Configure genai lazily now that user is authenticated and chat UI will be rendered
         if debug_timings:
             t_before_genai = time.perf_counter()
+        
+        # 로그인 페이지 스타일 리셋 (대시보드용)
+        st.markdown("""
+        <style>
+            /* 로그인 페이지의 그라데이션 배경 제거 */
+            html, body, .stApp {
+                background: #0e1117 !important;
+                background-image: none !important;
+                overflow: auto !important;
+            }
+            
+            /* 헤더/푸터 복원 */
+            header, footer {
+                visibility: visible !important;
+                display: block !important;
+            }
+            
+            /* 메인 컨테이너 기본 설정 복원 */
+            .main, .block-container {
+                padding: initial !important;
+                max-width: initial !important;
+                height: auto !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
         ensure_genai_configured()
         
         # Initialize API manager (web search, etc.) if not already done
