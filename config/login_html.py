@@ -70,14 +70,44 @@ def create_or_get_user(nickname):
 def show_login_page():
     """HTML 기반 로그인 페이지를 표시하고 Supabase와 통신합니다."""
     
-    # Streamlit Header/Footer 숨기기
+    # Streamlit Header/Footer 숨기기 및 전체 화면 설정
     st.markdown("""
     <style>
-        header {visibility: hidden;}
-        footer {visibility: hidden;}
-        .stApp > header {display: none;}
-        .block-container {padding: 0 !important; max-width: 100% !important;}
-        iframe {border: none !important;}
+        /* 모든 여백 제거 및 배경 통일 */
+        html, body, .stApp {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            overflow: hidden !important;
+        }
+        
+        /* 헤더/푸터 완전 제거 */
+        header, footer, 
+        [data-testid="stHeader"], 
+        [data-testid="stFooter"],
+        .stApp > header {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* 메인 컨테이너 전체 화면 */
+        .main, .block-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            height: 100vh !important;
+        }
+        
+        /* iframe 전체 화면 */
+        iframe {
+            border: none !important;
+            width: 100% !important;
+            height: 100vh !important;
+            display: block !important;
+        }
     </style>
     """, unsafe_allow_html=True)
     
@@ -126,5 +156,5 @@ def show_login_page():
                 window.location.href = newUrl;"""
     )
     
-    # HTML 렌더링
-    components.html(modified_html, height=600, scrolling=False)
+    # HTML 렌더링 (전체 화면)
+    components.html(modified_html, height=800, scrolling=False)
