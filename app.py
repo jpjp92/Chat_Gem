@@ -472,12 +472,8 @@ def show_chat_dashboard():
 
     # 메인 화면 - 환영 메시지 및 예시 버튼
     if not st.session_state.messages:
-        st.markdown(f"""
-        <div class="main-header">
-            <h2 class="main-title">{get_text("main_title", lang)}</h2>
-            <h5 class="subtitle">{get_text("subtitle", lang)}</h5>
-        </div>
-        """, unsafe_allow_html=True)
+        st.title(get_text("main_title", lang))
+        st.caption(get_text("subtitle", lang))
         
         # 예시 카드들 - 모던 디자인 (ChatGPT, Grok, Gemini 스타일)
         st.markdown("### 💡 " + get_text("try_examples", lang, default="사용 예시"))
