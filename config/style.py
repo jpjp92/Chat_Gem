@@ -2,393 +2,204 @@ GEMINI_CUSTOM_CSS = """
 <style>
     :root {
         --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --glass-bg: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        --card-bg-light: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        --card-bg-dark: linear-gradient(135deg, #1e1e2e 0%, #161625 100%);
     }
 
-    /* Streamlit-specific styles from SIDEBAR_CUSTOM_CSS */
+    /* Streamlit Sidebar Adjustments */
     .stExpander > div:first-child {
-        background-color: #1e1e1e;
-        border-radius: 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
     }
     
+    /* 
+       ================================================================
+       MAIN BUTTON STYLES (EXAMPLE CARDS)
+       ================================================================
+       Targeting standard st.button to look like "Cards"
+       Excluding secondary buttons via specific overrides below.
+    */
     .stButton > button {
-        border-radius: 12px !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        padding: 1.8rem 1.2rem !important;
-        font-size: 0.95rem !important;
-        font-weight: 500 !important;
-        min-height: 150px !important;
+        border-radius: 16px !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        padding: 1.5rem 1rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        min-height: 140px !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
         text-align: center !important;
-        background: linear-gradient(135deg, #f5f7ff 0%, #eff3ff 100%) !important;
+        line-height: 1.5 !important;
+        
+        /* Light Mode Default */
+        background: var(--card-bg-light) !important;
         color: #1a1a2e !important;
-        border: 1.5px solid rgba(102, 126, 234, 0.25) !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-        line-height: 1.4 !important;
+        border: 1px solid rgba(102, 126, 234, 0.15) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+        position: relative;
+        overflow: hidden;
     }
     
-    /* 작은 버튼들 (clear_attachments, confirm, cancel 등) */
-    .stButton > button[kind="secondary"] {
-        padding: 0.3rem 0.8rem !important;
-        min-height: 36px !important;
-        height: 36px !important;
-        font-size: 0.9rem !important;
-        flex-direction: row !important; /* Override the column direction */
-        justify-content: center !important;
-        background: #f0f2f6 !important; /* A more standard secondary button color */
-        color: #333 !important;
-        border: 1px solid #d0d0d0 !important;
-    }
-
-    .stButton > button[kind="secondary"]:hover {
-        transform: none !important; /* Disable the large button hover effect */
-        box-shadow: none !important;
-        background: #e0e2e6 !important;
-        border-color: #c0c0c0 !important;
-    }
-
+    /* Hover Effect for Cards */
     .stButton > button:hover {
-        transform: translateY(-8px) !important;
-        box-shadow: 0 16px 32px rgba(102, 126, 234, 0.2) !important;
-        background: linear-gradient(135deg, #eff3ff 0%, #e8f0ff 100%) !important;
-        border-color: rgba(102, 126, 234, 0.6) !important;
+        transform: translateY(-5px) !important;
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2) !important;
+        border-color: rgba(102, 126, 234, 0.5) !important;
     }
-
+    
     .stButton > button:active {
         transform: translateY(-2px) !important;
     }
-    
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #4CAF50, #45a049);
+
+    /* Dark Mode Support for Cards */
+    @media (prefers-color-scheme: dark) {
+        .stButton > button {
+            background: var(--card-bg-dark) !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .stButton > button:hover {
+            border-color: rgba(102, 126, 234, 0.6) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4) !important;
+            background: linear-gradient(135deg, #252538 0%, #1a1a2e 100%) !important;
+        }
     }
 
-    /* Original GEMINI_CUSTOM_CSS styles */
+    /* 
+       ================================================================
+       SECONDARY BUTTONS (Overrides for normal small buttons)
+       ================================================================
+       Resetting the "Card" styles for buttons marked as secondary 
+       (e.g., Clear Attachments, Confirm, etc.)
+    */
+    .stButton > button[kind="secondary"] {
+        padding: 0.4rem 1rem !important;
+        min-height: unset !important;
+        height: auto !important;
+        font-size: 0.9rem !important;
+        flex-direction: row !important;
+        background: transparent !important;
+        color: inherit !important;
+        border: 1px solid rgba(128, 128, 128, 0.3) !important;
+        box-shadow: none !important;
+        border-radius: 8px !important;
+        margin-top: 5px;
+    }
+
+    .stButton > button[kind="secondary"]:hover {
+        transform: translateY(-1px) !important;
+        background: rgba(128, 128, 128, 0.1) !important;
+        border-color: rgba(128, 128, 128, 0.5) !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+    }
+
+    /* 
+       ================================================================
+       HEADER STYLES
+       ================================================================
+    */
     .main-header {
-        background: var(--primary-gradient); /* 기존 배경 유지 */
-        padding: 0.25rem 1rem; /* 위아래 패딩 줄이고 좌우는 유지 */
-        border-radius: 8px; /* 둥근 모서리 유지 */
-        margin-bottom: 1.5rem; /* 아래 콘텐츠와의 간격 유지 */
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9));
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 2rem 1rem;
+        border-radius: 20px;
+        margin-bottom: 2.5rem;
         text-align: center;
         color: white;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.05); /* 그림자 더 부드럽게 */
-        max-width: 100%; /* 좌우 폭 유지 */
-        margin-left: auto;
-        margin-right: auto; /* 중앙 정렬 유지 */
-    }
-
-    .main-title {
-        background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1); /* 그라디언트 유지 */
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 1.5rem; /* 제목 글자 크기 줄임 */
-        font-weight: 600;
-        margin: 0 0 0.25rem 0; /* 아래 여백 유지 */
-        animation: gradient 5s ease infinite; /* 애니메이션 유지 */
-        text-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        line-height: 1.2;
-    }
-
-    @keyframes gradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
-    .subtitle {
-        color: rgba(255, 255, 255, 0.9); /* 색상 유지 */
-        font-weight: 400;
-        line-height: 1.5;
-        margin: 0;
-        font-size: 0.9rem; /* 부제목 글자 크기 줄임 */
-    }
-    
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-15px); }
-        60% { transform: translateY(-7px); }
-    }
-    
-    .welcome-container {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin: 1rem 0;
-        text-align: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    .simple-button {
-        background: #e0e0e0;
-        color: #333;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 10px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin: 0.5rem;
-    }
-    
-    .simple-button:hover {
-        background: #d0d0d0;
-        transform: translateY(-2px);
-    }
-    
-    .chat-session {
-        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border-left: 4px solid #667eea;
-    }
-    
-    .chat-session:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    .new-chat-btn {
-        background: var(--primary-gradient);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 25px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        width: 100%;
-        margin-bottom: 1rem;
-    }
-    
-    .new-chat-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    .example-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-    }
-    
-    .stats-container {
-        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        text-align: center;
-    }
-    
-    @media (max-width: 768px) {
-        .main-title { 
-            font-size: 1.5rem;
-            line-height: 1.3;
-        }
-        .main-header {
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .subtitle {
-            font-size: 1rem;
-        }
-    }
-    
-    @media (prefers-reduced-motion: reduce) {
-        .icon-bounce {
-            animation: none;
-        }
-    }
-
-    /* Modern Example Cards (inspired by ChatGPT, Grok, Gemini) */
-    .example-card-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.2rem;
-        margin: 2rem 0;
-        padding: 0 0.5rem;
-    }
-
-    .example-card {
-        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-        border: 1px solid rgba(102, 126, 234, 0.2);
-        border-radius: 12px;
-        padding: 1.5rem;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 30px rgba(118, 75, 162, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         position: relative;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        min-height: 180px;
-        justify-content: center;
     }
-
-    .example-card::before {
+    
+    /* Subtle sheen effect on header */
+    .main-header::before {
         content: '';
         position: absolute;
         top: 0;
-        left: -100%;
+        left: -50%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-
-    .example-card:hover::before {
-        left: 100%;
-    }
-
-    .example-card:hover {
-        transform: translateY(-6px);
-        border-color: rgba(102, 126, 234, 0.5);
-        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
-        background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
-    }
-
-    .example-card:active {
-        transform: translateY(-2px);
-    }
-
-    .example-card-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.75rem;
-        display: inline-block;
-        transition: transform 0.3s ease;
-    }
-
-    .example-card:hover .example-card-icon {
-        transform: scale(1.15) rotate(5deg);
-    }
-
-    .example-card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 0.5rem;
-        transition: color 0.3s ease;
-    }
-
-    .example-card:hover .example-card-title {
-        color: #667eea;
-    }
-
-    .example-card-desc {
-        font-size: 0.8rem;
-        color: #666;
-        line-height: 1.4;
-        transition: color 0.3s ease;
-    }
-
-    .example-card:hover .example-card-desc {
-        color: #555;
-    }
-
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-        .example-card {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-color: rgba(102, 126, 234, 0.3);
-        }
-
-        .example-card:hover {
-            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-            border-color: rgba(102, 126, 234, 0.6);
-            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.25);
-        }
-
-        .example-card-title {
-            color: #e8f0ff;
-        }
-
-        .example-card:hover .example-card-title {
-            color: #a0b5ff;
-        }
-
-        .example-card-desc {
-            color: #b0b9c0;
-        }
-
-        .example-card:hover .example-card-desc {
-            color: #c8d5e8;
-        }
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .example-card-container {
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 1rem;
-        }
-
-        .example-card {
-            padding: 1.2rem;
-            min-height: 160px;
-        }
-
-        .example-card-icon {
-            font-size: 2rem;
-        }
-
-        .example-card-title {
-            font-size: 0.95rem;
-        }
-
-        .example-card-desc {
-            font-size: 0.75rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .example-card-container {
-            grid-template-columns: 1fr;
-            gap: 0.8rem;
-        }
-
-        .example-card {
-            padding: 1rem;
-            min-height: 140px;
-        }
-    }
-
-    /* 예시 카드 아래 '선택' 버튼 숨기기 */
-    button[kind="secondary"]:has-text("선택") {
-        display: none !important;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transform: skewX(-20deg);
+        animation: sheen 6s infinite;
     }
     
-   
-
-    /* 첨부 초기화 버튼 기본 크기 */
-    .stButton > button[data-testid="clear-attachments-btn"],
-    .stButton button[data-testid="clear-attachments-btn"],
-    button[data-testid="clear-attachments-btn"],
-    .stButton button:has-text("첨부 초기화") {
-        min-height: unset !important;
-        height: 36px !important;
-        padding: 0.5rem 1rem !important;
-        font-size: 1rem !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-        line-height: 1.2 !important;
-        border-radius: 8px !important;
-        background: #f5f7ff !important;
-        color: #222 !important;
-        border: 1px solid #eee !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+    @keyframes sheen {
+        0% { left: -50%; }
+        50%, 100% { left: 150%; }
     }
 
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.02em;
+        background: linear-gradient(to right, #ffffff, #e0e0e0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.05rem;
+        font-weight: 400;
+        margin-top: 0.5rem;
+        opacity: 0.9;
+    }
+
+    /* 
+       ================================================================
+       UTILITIES & PROGRESS BAR
+       ================================================================
+    */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 10px;
+    }
+    
+    /* Hide scrollbar for cleaner look */
+    .stApp::-webkit-scrollbar {
+        width: 8px;
+    }
+    .stApp::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .stApp::-webkit-scrollbar-thumb {
+        background: rgba(100, 100, 100, 0.2);
+        border-radius: 4px;
+    }
+    .stApp::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 100, 100, 0.4);
+    }
+
+    /* Example card specific adjustment if needed in future */
+    .example-card-container {
+        display: none; /* Deprecated in favor of native buttons */
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+        .main-header {
+            padding: 1.5rem;
+            border-radius: 15px;
+        }
+        .main-title {
+            font-size: 1.8rem;
+        }
+        .stButton > button {
+            min-height: 100px !important;
+            padding: 1rem !important; 
+        }
+    }
 </style>
 """
